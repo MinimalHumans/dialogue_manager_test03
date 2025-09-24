@@ -46,6 +46,12 @@ func _ready():
 	dialogue_system = DialogueSystem.new()
 	conversation_state = ConversationState.new()
 	
+	# Fix ChatDisplay sizing issues
+	chat_display.size_flags_horizontal = Control.SIZE_FILL | Control.SIZE_EXPAND
+	chat_display.size_flags_vertical = Control.SIZE_FILL | Control.SIZE_EXPAND
+	chat_display.fit_content = false
+	chat_display.custom_minimum_size = Vector2(400, 300)
+	
 	setup_ui()
 	new_chat_button.pressed.connect(_on_new_chat_pressed)
 
@@ -170,6 +176,20 @@ func start_conversation():
 	var greeting = dialogue_system.get_faction_flavor(conversation_state.npc_faction, "greeting")
 	add_npc_message(greeting)
 	
+	# Show initial request options instead of auto-playing
+	show_initial_request_options()
+
+func show_initial_request_options():
+	for child in options_container.get_children():
+		child.queue_free()
+	
+	# Add the initial fuel request as a clickable option
+	var button = Button.new()
+	button.text = "I need to refuel my ship."
+	button.pressed.connect(_on_initial_request_pressed)
+	options_container.add_child(button)
+
+func _on_initial_request_pressed():
 	var initial_request = dialogue_system.get_player_dialogue("fuel_request_initial", "", "ADEQUATE")
 	add_player_message(initial_request)
 	
@@ -232,7 +252,7 @@ func _on_social_option_pressed(approach: String):
 		if conversation_state.attempt_count < 2:
 			show_second_attempt_options()
 		else:
-			end_conversation(false)
+			end_conversation_clean(false)
 
 func show_negotiation_options():
 	for child in options_container.get_children():
@@ -258,27 +278,43 @@ func _on_negotiation_option_pressed(approach: String):
 	var success = calculate_dialogue_success(approach)
 	
 	if success:
-		var acceptance_text = dialogue_system.get_player_dialogue("fuel_accept_" + approach.to_lower(), approach, competence)
-		add_player_message(acceptance_text)
-		
+		# NPC accepts the counter-offer - add success confirmation
 		var npc_response = dialogue_system.get_npc_response(
 			conversation_state.npc_trait,
 			"agreement",
 			conversation_state.get_threat_context()
 		)
-		add_npc_message(npc_response)
-		end_conversation(true)
-	else:
-		var rejection_text = dialogue_system.get_player_dialogue("fuel_reject_" + approach.to_lower(), approach, competence)
-		add_player_message(rejection_text)
+		# Add a success confirmation from conversation flow
+		var success_confirm = dialogue_system.get_conversation_flow("success_confirm")
+		npc_response += " " + success_confirm
 		
+		add_npc_message(npc_response)
+		end_conversation_clean(true)
+	else:
+		# NPC rejects the counter-offer
 		var npc_response = dialogue_system.get_npc_response(
 			conversation_state.npc_trait,
 			"rejection",
 			conversation_state.get_threat_context()
 		)
 		add_npc_message(npc_response)
-		end_conversation(false)
+		end_conversation_clean(false)
+
+func end_conversation_clean(success: bool):
+	# Clear options and add end indicator without additional NPC message
+	for child in options_container.get_children():
+		child.queue_free()
+	
+	var end_label = Label.new()
+	if success:
+		end_label.text = "--- Fuel Transaction Complete ---"
+		end_label.add_theme_color_override("font_color", Color.GREEN)
+	else:
+		end_label.text = "--- Negotiation Failed ---"
+		end_label.add_theme_color_override("font_color", Color.RED)
+	
+	end_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	options_container.add_child(end_label)
 
 func show_second_attempt_options():
 	conversation_state.attempt_count += 1
