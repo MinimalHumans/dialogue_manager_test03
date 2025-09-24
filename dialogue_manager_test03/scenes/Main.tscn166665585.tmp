@@ -4,11 +4,7 @@
 
 [node name="Main" type="Control"]
 layout_mode = 3
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
+anchors_preset = 0
 size_flags_horizontal = 3
 size_flags_vertical = 3
 script = ExtResource("1_elqb8")
@@ -25,12 +21,9 @@ text = "NEW CHAT"
 
 [node name="MiddlePanel" type="HSplitContainer" parent="."]
 layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_top = 49.0
-grow_horizontal = 2
-grow_vertical = 2
+offset_top = 50.0
+offset_right = 1137.0
+offset_bottom = 637.0
 
 [node name="LeftPanel" type="HBoxContainer" parent="MiddlePanel"]
 custom_minimum_size = Vector2(350, 0)
@@ -187,11 +180,9 @@ size_flags_vertical = 3
 horizontal_scroll_mode = 3
 
 [node name="ChatDisplay" type="RichTextLabel" parent="MiddlePanel/RightPanel/ChatContainer"]
-custom_minimum_size = Vector2(400, 300)
 layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
 bbcode_enabled = true
+fit_content = true
 
 [node name="OptionsContainer" type="VBoxContainer" parent="MiddlePanel/RightPanel"]
 custom_minimum_size = Vector2(0, 200)

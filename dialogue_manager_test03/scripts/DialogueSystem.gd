@@ -17,7 +17,8 @@ var dialogue_variables_cache = {}
 
 func _init():
 	db = SQLite.new()
-	if not db.open(db_path):
+	db.path = db_path
+	if not db.open_db():
 		push_error("Failed to open database at: " + db_path)
 		return
 	
@@ -43,18 +44,20 @@ func load_all_data():
 	i = 0
 	while i < db.query_result.size():
 		var row = db.query_result[i]
-		var level = str(row["competence_level"])
-		if not competence_modifiers_cache.has(level):
-			competence_modifiers_cache[level] = {}
+		var level_name = str(row["competence_level"])
 		
-		var modifier_type = str(row["modifier_type"])
-		if not competence_modifiers_cache[level].has(modifier_type):
-			competence_modifiers_cache[level][modifier_type] = []
+		if level_name not in competence_modifiers_cache:
+			competence_modifiers_cache[level_name] = {}
 		
-		competence_modifiers_cache[level][modifier_type].append({
-			"text": str(row["modifier_text"]),
-			"chance": float(row["apply_chance"])
-		})
+		var modifier_type_name = str(row["modifier_type"])
+		if modifier_type_name not in competence_modifiers_cache[level_name]:
+			competence_modifiers_cache[level_name][modifier_type_name] = []
+		
+		var modifier_data = {}
+		modifier_data["text"] = str(row["modifier_text"])
+		modifier_data["chance"] = float(row["apply_chance"])
+		
+		competence_modifiers_cache[level_name][modifier_type_name].append(modifier_data)
 		i += 1
 	
 	# Load NPC responses
@@ -62,19 +65,29 @@ func load_all_data():
 	i = 0
 	while i < db.query_result.size():
 		var row = db.query_result[i]
-		var trait = str(row["dominant_trait"])
-		if not npc_responses_cache.has(trait):
-			npc_responses_cache[trait] = {}
+		var trait_name = str(row["dominant_trait"])
 		
-		var response_type = str(row["response_type"])
-		if not npc_responses_cache[trait].has(response_type):
-			npc_responses_cache[trait][response_type] = []
+		# Initialize trait dictionary if it doesn't exist
+		if trait_name not in npc_responses_cache:
+			npc_responses_cache[trait_name] = {}
 		
-		npc_responses_cache[trait][response_type].append({
-			"text": str(row["response_text"]),
-			"threat_context": str(row["threat_context"]) if row["threat_context"] else null,
-			"includes_price_var": bool(row["includes_price_var"])
-		})
+		var response_type_name = str(row["response_type"])
+		
+		# Initialize response type array if it doesn't exist
+		if response_type_name not in npc_responses_cache[trait_name]:
+			npc_responses_cache[trait_name][response_type_name] = []
+		
+		# Create response data
+		var response_data = {}
+		response_data["text"] = str(row["response_text"])
+		if row["threat_context"]:
+			response_data["threat_context"] = str(row["threat_context"])
+		else:
+			response_data["threat_context"] = null
+		response_data["includes_price_var"] = bool(row["includes_price_var"])
+		
+		# Add to cache
+		npc_responses_cache[trait_name][response_type_name].append(response_data)
 		i += 1
 	
 	# Load faction flavor
@@ -82,15 +95,16 @@ func load_all_data():
 	i = 0
 	while i < db.query_result.size():
 		var row = db.query_result[i]
-		var faction = str(row["faction"])
-		if not faction_flavor_cache.has(faction):
-			faction_flavor_cache[faction] = {}
+		var faction_name = str(row["faction"])
 		
-		var component_type = str(row["component_type"])
-		if not faction_flavor_cache[faction].has(component_type):
-			faction_flavor_cache[faction][component_type] = []
+		if faction_name not in faction_flavor_cache:
+			faction_flavor_cache[faction_name] = {}
 		
-		faction_flavor_cache[faction][component_type].append(str(row["flavor_text"]))
+		var component_type_name = str(row["component_type"])
+		if component_type_name not in faction_flavor_cache[faction_name]:
+			faction_flavor_cache[faction_name][component_type_name] = []
+		
+		faction_flavor_cache[faction_name][component_type_name].append(str(row["flavor_text"]))
 		i += 1
 	
 	# Load faction relationships
@@ -110,15 +124,20 @@ func load_all_data():
 	i = 0
 	while i < db.query_result.size():
 		var row = db.query_result[i]
-		var flow_type = str(row["flow_type"])
-		if not conversation_flow_cache.has(flow_type):
-			conversation_flow_cache[flow_type] = []
+		var flow_type_name = str(row["flow_type"])
 		
-		conversation_flow_cache[flow_type].append({
-			"text": str(row["flow_text"]),
-			"attempt_number": row["attempt_number"] if row["attempt_number"] else null,
-			"is_final": bool(row["is_final"])
-		})
+		if flow_type_name not in conversation_flow_cache:
+			conversation_flow_cache[flow_type_name] = []
+		
+		var flow_data = {}
+		flow_data["text"] = str(row["flow_text"])
+		if row["attempt_number"]:
+			flow_data["attempt_number"] = row["attempt_number"]
+		else:
+			flow_data["attempt_number"] = null
+		flow_data["is_final"] = bool(row["is_final"])
+		
+		conversation_flow_cache[flow_type_name].append(flow_data)
 		i += 1
 	
 	# Load threat modifiers
@@ -126,16 +145,17 @@ func load_all_data():
 	i = 0
 	while i < db.query_result.size():
 		var row = db.query_result[i]
-		var threat_diff = str(row["threat_difference"])
-		if not threat_modifiers_cache.has(threat_diff):
-			threat_modifiers_cache[threat_diff] = {}
+		var threat_diff_name = str(row["threat_difference"])
 		
-		var reaction_type = str(row["reaction_type"])
-		if not threat_modifiers_cache[threat_diff].has(reaction_type):
-			threat_modifiers_cache[threat_diff][reaction_type] = {}
+		if threat_diff_name not in threat_modifiers_cache:
+			threat_modifiers_cache[threat_diff_name] = {}
 		
-		var intensity = str(row["intensity"])
-		threat_modifiers_cache[threat_diff][reaction_type][intensity] = str(row["modifier_text"])
+		var reaction_type_name = str(row["reaction_type"])
+		if reaction_type_name not in threat_modifiers_cache[threat_diff_name]:
+			threat_modifiers_cache[threat_diff_name][reaction_type_name] = {}
+		
+		var intensity_name = str(row["intensity"])
+		threat_modifiers_cache[threat_diff_name][reaction_type_name][intensity_name] = str(row["modifier_text"])
 		i += 1
 	
 	# Load dialogue variables

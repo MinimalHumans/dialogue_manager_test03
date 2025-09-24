@@ -170,7 +170,7 @@ func start_conversation():
 	var greeting = dialogue_system.get_faction_flavor(conversation_state.npc_faction, "greeting")
 	add_npc_message(greeting)
 	
-	var initial_request = dialogue_system.get_player_dialogue("fuel_request_initial", null, "ADEQUATE")
+	var initial_request = dialogue_system.get_player_dialogue("fuel_request_initial", "", "ADEQUATE")
 	add_player_message(initial_request)
 	
 	var npc_response = dialogue_system.get_npc_response(
