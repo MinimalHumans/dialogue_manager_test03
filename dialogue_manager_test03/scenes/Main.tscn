@@ -1,0 +1,190 @@
+[gd_scene load_steps=2 format=3 uid="uid://cmnsyvqyv7plx"]
+
+[ext_resource type="Script" uid="uid://b5pfjiwxn4p4p" path="res://scripts/Main.gd" id="1_elqb8"]
+
+[node name="Main" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+size_flags_horizontal = 3
+size_flags_vertical = 3
+script = ExtResource("1_elqb8")
+
+[node name="TopPanel" type="HBoxContainer" parent="."]
+custom_minimum_size = Vector2(0, 35)
+layout_mode = 1
+offset_right = 91.0
+offset_bottom = 35.0
+
+[node name="NewChatButton" type="Button" parent="TopPanel"]
+layout_mode = 2
+text = "NEW CHAT"
+
+[node name="MiddlePanel" type="HSplitContainer" parent="."]
+layout_mode = 1
+offset_top = 50.0
+offset_right = 1137.0
+offset_bottom = 637.0
+
+[node name="LeftPanel" type="HBoxContainer" parent="MiddlePanel"]
+custom_minimum_size = Vector2(350, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="PlayerStatsPanel" type="Panel" parent="MiddlePanel/LeftPanel"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="PlayerStatsContainer" type="VBoxContainer" parent="MiddlePanel/LeftPanel/PlayerStatsPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Label" type="Label" parent="MiddlePanel/LeftPanel/PlayerStatsPanel/PlayerStatsContainer"]
+layout_mode = 2
+text = "Player Stats"
+
+[node name="PlayerGrid" type="GridContainer" parent="MiddlePanel/LeftPanel/PlayerStatsPanel/PlayerStatsContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="DiplomaticLabel" type="Label" parent="MiddlePanel/LeftPanel/PlayerStatsPanel/PlayerStatsContainer/PlayerGrid"]
+layout_mode = 2
+text = "Diplomatic :"
+
+[node name="DiplomaticOption" type="OptionButton" parent="MiddlePanel/LeftPanel/PlayerStatsPanel/PlayerStatsContainer/PlayerGrid"]
+layout_mode = 2
+
+[node name="DirectLabel" type="Label" parent="MiddlePanel/LeftPanel/PlayerStatsPanel/PlayerStatsContainer/PlayerGrid"]
+layout_mode = 2
+text = "Direct :"
+
+[node name="DirectOption" type="OptionButton" parent="MiddlePanel/LeftPanel/PlayerStatsPanel/PlayerStatsContainer/PlayerGrid"]
+layout_mode = 2
+
+[node name="AggressiveLabel" type="Label" parent="MiddlePanel/LeftPanel/PlayerStatsPanel/PlayerStatsContainer/PlayerGrid"]
+layout_mode = 2
+text = "Agressive :"
+
+[node name="AggressiveOption" type="OptionButton" parent="MiddlePanel/LeftPanel/PlayerStatsPanel/PlayerStatsContainer/PlayerGrid"]
+layout_mode = 2
+
+[node name="CharmingLabel" type="Label" parent="MiddlePanel/LeftPanel/PlayerStatsPanel/PlayerStatsContainer/PlayerGrid"]
+layout_mode = 2
+text = "Charming :"
+
+[node name="CharmingOption" type="OptionButton" parent="MiddlePanel/LeftPanel/PlayerStatsPanel/PlayerStatsContainer/PlayerGrid"]
+layout_mode = 2
+
+[node name="EmpatheticLabel" type="Label" parent="MiddlePanel/LeftPanel/PlayerStatsPanel/PlayerStatsContainer/PlayerGrid"]
+layout_mode = 2
+text = "Empathetic :"
+
+[node name="EmpatheticOption" type="OptionButton" parent="MiddlePanel/LeftPanel/PlayerStatsPanel/PlayerStatsContainer/PlayerGrid"]
+layout_mode = 2
+
+[node name="PlayerFactionLabel" type="Label" parent="MiddlePanel/LeftPanel/PlayerStatsPanel/PlayerStatsContainer/PlayerGrid"]
+layout_mode = 2
+text = "Faction :"
+
+[node name="PlayerFactionOption" type="OptionButton" parent="MiddlePanel/LeftPanel/PlayerStatsPanel/PlayerStatsContainer/PlayerGrid"]
+layout_mode = 2
+
+[node name="PlayerThreatLabel" type="Label" parent="MiddlePanel/LeftPanel/PlayerStatsPanel/PlayerStatsContainer/PlayerGrid"]
+layout_mode = 2
+text = "Threat Level :"
+
+[node name="PlayerThreatOption" type="OptionButton" parent="MiddlePanel/LeftPanel/PlayerStatsPanel/PlayerStatsContainer/PlayerGrid"]
+layout_mode = 2
+
+[node name="NPCStatsPanel" type="Panel" parent="MiddlePanel/LeftPanel"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="NPCStatsContainer" type="VBoxContainer" parent="MiddlePanel/LeftPanel/NPCStatsPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="NPCStatsLabel" type="Label" parent="MiddlePanel/LeftPanel/NPCStatsPanel/NPCStatsContainer"]
+layout_mode = 2
+text = "NPC Stats"
+
+[node name="NPCGrid" type="GridContainer" parent="MiddlePanel/LeftPanel/NPCStatsPanel/NPCStatsContainer"]
+layout_mode = 2
+
+[node name="NPCDiplomaticLabel" type="Label" parent="MiddlePanel/LeftPanel/NPCStatsPanel/NPCStatsContainer/NPCGrid"]
+layout_mode = 2
+text = "Diplomatic :"
+
+[node name="NPCDiplomaticOption" type="OptionButton" parent="MiddlePanel/LeftPanel/NPCStatsPanel/NPCStatsContainer/NPCGrid"]
+layout_mode = 2
+
+[node name="NPCDirectLabel" type="Label" parent="MiddlePanel/LeftPanel/NPCStatsPanel/NPCStatsContainer/NPCGrid"]
+layout_mode = 2
+text = "Direct :"
+
+[node name="NPCDirectOption" type="OptionButton" parent="MiddlePanel/LeftPanel/NPCStatsPanel/NPCStatsContainer/NPCGrid"]
+layout_mode = 2
+
+[node name="NPCAggressiveLabel" type="Label" parent="MiddlePanel/LeftPanel/NPCStatsPanel/NPCStatsContainer/NPCGrid"]
+layout_mode = 2
+text = "Agressive :"
+
+[node name="NPCAggressiveOption" type="OptionButton" parent="MiddlePanel/LeftPanel/NPCStatsPanel/NPCStatsContainer/NPCGrid"]
+layout_mode = 2
+
+[node name="NPCCharmingLabel" type="Label" parent="MiddlePanel/LeftPanel/NPCStatsPanel/NPCStatsContainer/NPCGrid"]
+layout_mode = 2
+text = "Charming :"
+
+[node name="NPCCharmingOption" type="OptionButton" parent="MiddlePanel/LeftPanel/NPCStatsPanel/NPCStatsContainer/NPCGrid"]
+layout_mode = 2
+
+[node name="NPCEmpatheticLabel" type="Label" parent="MiddlePanel/LeftPanel/NPCStatsPanel/NPCStatsContainer/NPCGrid"]
+layout_mode = 2
+text = "Empathetic :"
+
+[node name="NPCEmpatheticOption" type="OptionButton" parent="MiddlePanel/LeftPanel/NPCStatsPanel/NPCStatsContainer/NPCGrid"]
+layout_mode = 2
+
+[node name="NPCFactionLabel" type="Label" parent="MiddlePanel/LeftPanel/NPCStatsPanel/NPCStatsContainer/NPCGrid"]
+layout_mode = 2
+text = "Faction :"
+
+[node name="NPCFactionOption" type="OptionButton" parent="MiddlePanel/LeftPanel/NPCStatsPanel/NPCStatsContainer/NPCGrid"]
+layout_mode = 2
+
+[node name="NPCThreatLabel" type="Label" parent="MiddlePanel/LeftPanel/NPCStatsPanel/NPCStatsContainer/NPCGrid"]
+layout_mode = 2
+text = "Threat Level :"
+
+[node name="NPCThreatOption" type="OptionButton" parent="MiddlePanel/LeftPanel/NPCStatsPanel/NPCStatsContainer/NPCGrid"]
+layout_mode = 2
+
+[node name="RightPanel" type="VBoxContainer" parent="MiddlePanel"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 2.0
+
+[node name="ChatContainer" type="ScrollContainer" parent="MiddlePanel/RightPanel"]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 3
+
+[node name="ChatDisplay" type="RichTextLabel" parent="MiddlePanel/RightPanel/ChatContainer"]
+layout_mode = 2
+bbcode_enabled = true
+fit_content = true
+
+[node name="OptionsContainer" type="VBoxContainer" parent="MiddlePanel/RightPanel"]
+custom_minimum_size = Vector2(0, 200)
+layout_mode = 2
+size_flags_vertical = 4
