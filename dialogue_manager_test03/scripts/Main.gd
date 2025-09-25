@@ -193,18 +193,137 @@ func _on_initial_request_pressed():
 	var initial_request = dialogue_system.get_player_dialogue("fuel_request_initial", "", "ADEQUATE")
 	add_player_message(initial_request)
 	
-	var npc_response = dialogue_system.get_npc_response(
+	# NPC quotes a specific price instead of just agreeing
+	var price_quote = dialogue_system.get_npc_response(
 		conversation_state.npc_trait,
-		"agreement", 
+		"negotiation",  # Use negotiation responses which include prices
 		conversation_state.get_threat_context()
 	)
 	
-	var faction_agreement = dialogue_system.get_faction_flavor(conversation_state.npc_faction, "agreement")
-	if faction_agreement:
-		npc_response = faction_agreement + " " + npc_response
+	var faction_flavor = dialogue_system.get_faction_flavor(conversation_state.npc_faction, "agreement")
+	if faction_flavor:
+		price_quote = faction_flavor + " " + price_quote
+	
+	add_npc_message(price_quote)
+	show_accept_or_negotiate_options()
+
+func show_accept_or_negotiate_options():
+	for child in options_container.get_children():
+		child.queue_free()
+	
+	# Option 1: Accept the quoted price
+	var accept_button = Button.new()
+	accept_button.text = "Accept: I'll pay the asking price"
+	accept_button.pressed.connect(_on_accept_price_pressed)
+	options_container.add_child(accept_button)
+	
+	# Option 2: Try to negotiate
+	var negotiate_button = Button.new()
+	negotiate_button.text = "Negotiate: That's too high, let me make a counter-offer"
+	negotiate_button.pressed.connect(_on_try_negotiate_pressed)
+	options_container.add_child(negotiate_button)
+
+func _on_accept_price_pressed():
+	# Player accepts the quoted price - immediate success
+	add_player_message("I'll take it at that price.")
+	
+	var success_response = dialogue_system.get_conversation_flow("success_confirm")
+	add_npc_message(success_response)
+	end_conversation_clean(true)
+
+func _on_try_negotiate_pressed():
+	add_player_message("That's more than I was hoping to pay. Let me see if we can work something out...")
+	
+	var npc_response = "We'll see what you have in mind."
+	add_npc_message(npc_response)
+	
+	# NOW show social approaches as negotiation tactics
+	show_negotiation_tactics()
+
+func show_negotiation_tactics():
+	for child in options_container.get_children():
+		child.queue_free()
+	
+	var approaches = ["DIPLOMATIC", "DIRECT", "AGGRESSIVE", "CHARMING", "EMPATHETIC"]
+	
+	for approach in approaches:
+		var button = Button.new()
+		var competence = conversation_state.get_player_competence(approach)
+		# Generate dialogue text ONCE and store it
+		var dialogue_text = dialogue_system.get_player_dialogue("fuel_negotiate_" + approach.to_lower(), approach, competence)
+		
+		button.text = approach.capitalize() + ": " + dialogue_text
+		# Pass the stored dialogue text to the callback to avoid regeneration
+		button.pressed.connect(_on_negotiation_tactic_pressed.bind(approach, dialogue_text))
+		options_container.add_child(button)
+
+func _on_negotiation_tactic_pressed(approach: String, stored_dialogue_text: String):
+	# Use the stored dialogue text instead of regenerating it
+	add_player_message(stored_dialogue_text)
+	
+	var success = calculate_dialogue_success(approach)
+	
+	if success:
+		# NPC accepts the counter-offer
+		var acceptance_responses = [
+			"You drive a hard bargain, but I can work with that.",
+			"Fair enough, I can accept that price.",
+			"Alright, you've convinced me.",
+			"That sounds reasonable."
+		]
+		var npc_response = acceptance_responses[randi() % acceptance_responses.size()]
+		
+		var success_confirm = dialogue_system.get_conversation_flow("success_confirm")
+		npc_response += " " + success_confirm
+		
+		add_npc_message(npc_response)
+		end_conversation_clean(true)
+	else:
+		# NPC rejects the counter-offer - offer final choice
+		var rejection_response = dialogue_system.get_npc_response(
+			conversation_state.npc_trait,
+			"rejection",
+			conversation_state.get_threat_context()
+		)
+		add_npc_message(rejection_response)
+		show_final_choice()
+
+func show_final_choice():
+	for child in options_container.get_children():
+		child.queue_free()
+	
+	# Give player final choice after negotiation fails
+	var accept_original_button = Button.new()
+	accept_original_button.text = "Fine, I'll pay your original price"
+	accept_original_button.pressed.connect(_on_accept_original_price)
+	options_container.add_child(accept_original_button)
+	
+	var walk_away_button = Button.new()
+	walk_away_button.text = "No deal, I'll find fuel elsewhere"
+	walk_away_button.pressed.connect(_on_walk_away)
+	options_container.add_child(walk_away_button)
+
+func _on_accept_original_price():
+	add_player_message("Alright, I'll pay your asking price.")
+	
+	var grudging_responses = [
+		"Smart choice.",
+		"Good. Let's get this done.",
+		"Fine by me."
+	]
+	var npc_response = grudging_responses[randi() % grudging_responses.size()]
+	var success_confirm = dialogue_system.get_conversation_flow("success_confirm")
+	npc_response += " " + success_confirm
 	
 	add_npc_message(npc_response)
-	show_social_options()
+	end_conversation_clean(true)
+
+func _on_walk_away():
+	add_player_message("I'll find a better deal somewhere else.")
+	
+	var dismissal = dialogue_system.get_conversation_flow("polite_dismissal")
+	add_npc_message(dismissal)
+	end_conversation_clean(false)
 
 func show_social_options():
 	for child in options_container.get_children():
@@ -356,24 +475,92 @@ func _on_second_attempt_pressed(approach: String):
 			conversation_state.get_threat_context()
 		)
 		add_npc_message(npc_response)
-		end_conversation(false)
+		end_conversation_clean(false)
 
 func calculate_dialogue_success(approach: String) -> bool:
 	var competence = conversation_state.get_player_competence(approach)
 	var base_chance = get_competence_success_rate(competence)
 	
+	# =============================================================================
+	# NEGOTIATION SUCCESS MODIFIERS - Easily tunable for game balance
+	# =============================================================================
+	
+	# 1. TRAIT COMPATIBILITY (Original System)
 	var trait_match = 1.0
 	if approach == conversation_state.npc_trait:
-		trait_match = 1.3
+		trait_match = 1.3  # TUNING: Perfect match bonus (30% increase)
 	elif is_opposing_approach(approach, conversation_state.npc_trait):
-		trait_match = 0.7
+		trait_match = 0.7  # TUNING: Opposing approach penalty (30% decrease)
 	
+	# 2. FACTION RELATIONSHIP (Original System)
 	var faction_mod = dialogue_system.get_faction_relationship(
 		conversation_state.player_faction, 
 		conversation_state.npc_faction
 	)
 	
-	var final_chance = base_chance * trait_match * faction_mod
+	# 3. NPC PERSONALITY PRICE FLEXIBILITY (New System)
+	# How willing each personality type is to negotiate on price
+	var personality_flexibility = 1.0
+	match conversation_state.npc_trait:
+		"AGGRESSIVE":
+			personality_flexibility = 0.7  # TUNING: Tough negotiators, "take it or leave it"
+		"DIRECT":
+			personality_flexibility = 0.9  # TUNING: Straightforward, limited flexibility
+		"DIPLOMATIC":
+			personality_flexibility = 1.1  # TUNING: Reasonable, seeks compromise
+		"CHARMING":
+			personality_flexibility = 1.2  # TUNING: Flexible, wants to keep everyone happy
+		"EMPATHETIC":
+			personality_flexibility = 1.3  # TUNING: Most accommodating, considers player needs
+	
+	# 4. THREAT LEVEL DYNAMICS (New System)
+	# Power dynamics affect negotiation success
+	var threat_modifier = 1.0
+	var player_threat_val = conversation_state.threat_values.get(conversation_state.player_threat_level, 3)
+	var npc_threat_val = conversation_state.threat_values.get(conversation_state.npc_threat_level, 3)
+	var threat_difference = player_threat_val - npc_threat_val
+	
+	if threat_difference >= 2:
+		threat_modifier = 1.3  # TUNING: Strong intimidation factor
+	elif threat_difference == 1:
+		threat_modifier = 1.1  # TUNING: Mild intimidation
+	elif threat_difference == 0:
+		threat_modifier = 1.0  # TUNING: Equal footing
+	elif threat_difference == -1:
+		threat_modifier = 0.9  # TUNING: Less leverage
+	elif threat_difference <= -2:
+		threat_modifier = 0.7  # TUNING: Easily dismissed
+	
+	# SPECIAL CASE: Empathetic NPCs feel sympathy for weak players instead of contempt
+	if conversation_state.npc_trait == "EMPATHETIC" and threat_difference < 0:
+		threat_modifier = 1.2  # TUNING: Sympathy bonus overrides intimidation penalty
+	
+	# 5. CALCULATE BASE SUCCESS CHANCE
+	var success_chance = base_chance * trait_match * faction_mod * personality_flexibility * threat_modifier
+	
+	# 6. PITY BONUS (New System) - Applied AFTER multipliers as additive bonus
+	# Empathetic and Charming NPCs take pity on struggling players
+	var pity_bonus = 0.0
+	if (conversation_state.npc_trait == "EMPATHETIC" or conversation_state.npc_trait == "CHARMING"):
+		if competence == "INCOMPETENT" or competence == "STRUGGLING":
+			pity_bonus = 0.15  # TUNING: 15% additive bonus for incompetent/struggling players
+	
+	# Final success chance with pity bonus
+	var final_chance = success_chance + pity_bonus
+	
+	# =============================================================================
+	# DEBUG INFO (Remove or comment out for production)
+	# =============================================================================
+	print("=== NEGOTIATION SUCCESS CALCULATION ===")
+	print("Base Chance (", competence, "): ", base_chance)
+	print("Trait Match: ", trait_match)
+	print("Faction Modifier: ", faction_mod)
+	print("Personality Flexibility (", conversation_state.npc_trait, "): ", personality_flexibility)
+	print("Threat Modifier (", threat_difference, " difference): ", threat_modifier)
+	print("Pity Bonus: ", pity_bonus)
+	print("Final Chance: ", final_chance)
+	print("========================================")
+	
 	return randf() < final_chance
 
 func get_competence_success_rate(competence: String) -> float:
