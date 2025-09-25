@@ -38,7 +38,7 @@ var competence_levels = {
 	"MASTERFUL (15+)": "MASTERFUL"
 }
 
-var factions = ["MERCHANT", "PIRATE", "MILITARY", "RELIGIOUS"]
+var factions = ["MERCHANT", "PIRATE", "MILITARY", "RELIGIOUS", "CORPORATE"]
 var traits = ["DIPLOMATIC", "DIRECT", "AGGRESSIVE", "CHARMING", "EMPATHETIC"]
 var threat_levels = ["NEGLIGIBLE", "LOW", "MODERATE", "FORMIDABLE", "OVERWHELMING"]
 
