@@ -38,7 +38,7 @@ var competence_levels = {
 	"MASTERFUL (15+)": "MASTERFUL"
 }
 
-var factions = ["MERCHANT", "PIRATE", "MILITARY", "RELIGIOUS", "CORPORATE"]
+var factions = ["MERCHANT", "PIRATE", "MILITARY", "HEXARCHY", "CORPORATE"]
 var traits = ["DIPLOMATIC", "DIRECT", "AGGRESSIVE", "CHARMING", "EMPATHETIC"]
 var threat_levels = ["NEGLIGIBLE", "LOW", "MODERATE", "FORMIDABLE", "OVERWHELMING"]
 
@@ -211,33 +211,46 @@ func show_accept_or_negotiate_options():
 	for child in options_container.get_children():
 		child.queue_free()
 	
-	# Option 1: Accept the quoted price
+	# Pull button text from database
+	var accept_text = dialogue_system.get_player_dialogue("price_accept_button", "", "ADEQUATE")
+	var negotiate_text = dialogue_system.get_player_dialogue("price_negotiate_button", "", "ADEQUATE")
+	
 	var accept_button = Button.new()
-	accept_button.text = "Accept: I'll pay the asking price"
+	accept_button.text = accept_text
 	accept_button.pressed.connect(_on_accept_price_pressed)
 	options_container.add_child(accept_button)
 	
-	# Option 2: Try to negotiate
 	var negotiate_button = Button.new()
-	negotiate_button.text = "Negotiate: That's too high, let me make a counter-offer"
+	negotiate_button.text = negotiate_text
 	negotiate_button.pressed.connect(_on_try_negotiate_pressed)
 	options_container.add_child(negotiate_button)
 
 func _on_accept_price_pressed():
-	# Player accepts the quoted price - immediate success
-	add_player_message("I'll take it at that price.")
+	# Player accepts the quoted price with faction-flavored response
+	var faction_key = "price_accept_" + conversation_state.player_faction.to_lower()
+	var player_message = dialogue_system.get_player_dialogue(faction_key, "", "ADEQUATE")
+	add_player_message(player_message)
 	
+	# NPC confirms with success message and faction farewell
 	var success_response = dialogue_system.get_conversation_flow("success_confirm")
-	add_npc_message(success_response)
+	var farewell = dialogue_system.get_faction_flavor(conversation_state.npc_faction, "farewell")
+	add_npc_message(success_response + " " + farewell)
 	end_conversation_clean(true)
 
 func _on_try_negotiate_pressed():
-	add_player_message("That's more than I was hoping to pay. Let me see if we can work something out...")
+	# Player initiates negotiation with faction-flavored intro
+	var faction_key = "price_negotiate_" + conversation_state.player_faction.to_lower()
+	var player_message = dialogue_system.get_player_dialogue(faction_key, "", "ADEQUATE")
+	add_player_message(player_message)
 	
-	var npc_response = "We'll see what you have in mind."
+	# NPC responds based on personality
+	var npc_response = dialogue_system.get_npc_response(
+		conversation_state.npc_trait,
+		"negotiate_acknowledge",
+		""
+	)
 	add_npc_message(npc_response)
 	
-	# NOW show social approaches as negotiation tactics
 	show_negotiation_tactics()
 
 func show_negotiation_tactics():
@@ -264,17 +277,16 @@ func _on_negotiation_tactic_pressed(approach: String, stored_dialogue_text: Stri
 	var success = calculate_dialogue_success(approach)
 	
 	if success:
-		# NPC accepts the counter-offer
-		var acceptance_responses = [
-			"You drive a hard bargain, but I can work with that.",
-			"Fair enough, I can accept that price.",
-			"Alright, you've convinced me.",
-			"That sounds reasonable."
-		]
-		var npc_response = acceptance_responses[randi() % acceptance_responses.size()]
+		# NPC accepts the counter-offer (from database, not hardcoded array)
+		var npc_response = dialogue_system.get_npc_response(
+			conversation_state.npc_trait,
+			"counter_accept",
+			""
+		)
 		
 		var success_confirm = dialogue_system.get_conversation_flow("success_confirm")
-		npc_response += " " + success_confirm
+		var farewell = dialogue_system.get_faction_flavor(conversation_state.npc_faction, "farewell")
+		npc_response += " " + success_confirm + " " + farewell
 		
 		add_npc_message(npc_response)
 		end_conversation_clean(true)
@@ -292,37 +304,49 @@ func show_final_choice():
 	for child in options_container.get_children():
 		child.queue_free()
 	
-	# Give player final choice after negotiation fails
+	# Pull button text from database
+	var accept_original_text = dialogue_system.get_player_dialogue("final_accept_button", "", "ADEQUATE")
+	var walk_away_text = dialogue_system.get_player_dialogue("final_reject_button", "", "ADEQUATE")
+	
 	var accept_original_button = Button.new()
-	accept_original_button.text = "Fine, I'll pay your original price"
+	accept_original_button.text = accept_original_text
 	accept_original_button.pressed.connect(_on_accept_original_price)
 	options_container.add_child(accept_original_button)
 	
 	var walk_away_button = Button.new()
-	walk_away_button.text = "No deal, I'll find fuel elsewhere"
+	walk_away_button.text = walk_away_text
 	walk_away_button.pressed.connect(_on_walk_away)
 	options_container.add_child(walk_away_button)
 
 func _on_accept_original_price():
-	add_player_message("Alright, I'll pay your asking price.")
+	# Player caves with faction-flavored response
+	var faction_key = "final_accept_" + conversation_state.player_faction.to_lower()
+	var player_message = dialogue_system.get_player_dialogue(faction_key, "", "ADEQUATE")
+	add_player_message(player_message)
 	
-	var grudging_responses = [
-		"Smart choice.",
-		"Good. Let's get this done.",
-		"Fine by me."
-	]
-	var npc_response = grudging_responses[randi() % grudging_responses.size()]
+	# NPC grudgingly accepts with personality-based response
+	var npc_response = dialogue_system.get_npc_response(
+		conversation_state.npc_trait,
+		"grudging_accept",
+		""
+	)
 	var success_confirm = dialogue_system.get_conversation_flow("success_confirm")
-	npc_response += " " + success_confirm
+	var farewell = dialogue_system.get_faction_flavor(conversation_state.npc_faction, "farewell")
+	npc_response += " " + success_confirm + " " + farewell
 	
 	add_npc_message(npc_response)
 	end_conversation_clean(true)
 
 func _on_walk_away():
-	add_player_message("I'll find a better deal somewhere else.")
+	# Player walks away with faction-flavored response
+	var faction_key = "final_reject_" + conversation_state.player_faction.to_lower()
+	var player_message = dialogue_system.get_player_dialogue(faction_key, "", "ADEQUATE")
+	add_player_message(player_message)
 	
+	# NPC dismisses with polite ending and farewell
 	var dismissal = dialogue_system.get_conversation_flow("polite_dismissal")
-	add_npc_message(dismissal)
+	var farewell = dialogue_system.get_faction_flavor(conversation_state.npc_faction, "farewell")
+	add_npc_message(dismissal + " " + farewell)
 	end_conversation_clean(false)
 
 func show_social_options():
