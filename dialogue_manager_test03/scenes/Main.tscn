@@ -23,6 +23,14 @@ offset_bottom = 35.0
 layout_mode = 2
 text = "NEW CHAT"
 
+[node name="RandomizePlayerButton" type="Button" parent="TopPanel"]
+layout_mode = 2
+text = "Randomize Player Stats"
+
+[node name="RandomizeNPCButton" type="Button" parent="TopPanel"]
+layout_mode = 2
+text = "Randomize Player Stats"
+
 [node name="MiddlePanel" type="HSplitContainer" parent="."]
 layout_mode = 1
 anchors_preset = 15

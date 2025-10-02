@@ -3,6 +3,8 @@ extends Control
 
 # UI References
 @onready var new_chat_button: Button = $TopPanel/NewChatButton
+@onready var randomize_player_button: Button = $TopPanel/RandomizePlayerButton
+@onready var randomize_npc_button: Button = $TopPanel/RandomizeNPCButton
 @onready var chat_display: RichTextLabel = $MiddlePanel/RightPanel/ChatContainer/ChatDisplay
 @onready var options_container: VBoxContainer = $MiddlePanel/RightPanel/OptionsContainer
 @onready var chat_scroll: ScrollContainer = $MiddlePanel/RightPanel/ChatContainer
@@ -54,6 +56,8 @@ func _ready():
 	
 	setup_ui()
 	new_chat_button.pressed.connect(_on_new_chat_pressed)
+	randomize_player_button.pressed.connect(_on_randomize_player_pressed)
+	randomize_npc_button.pressed.connect(_on_randomize_npc_pressed)
 
 func setup_ui():
 	# Setup competence level dropdowns for player
@@ -634,3 +638,31 @@ func add_npc_message(text: String):
 func scroll_to_bottom():
 	await get_tree().process_frame
 	chat_scroll.scroll_vertical = chat_scroll.get_v_scroll_bar().max_value
+
+func _on_randomize_player_pressed():
+	# Randomize player competence levels
+	player_diplomatic.selected = randi() % competence_levels.size()
+	player_direct.selected = randi() % competence_levels.size()
+	player_aggressive.selected = randi() % competence_levels.size()
+	player_charming.selected = randi() % competence_levels.size()
+	player_empathetic.selected = randi() % competence_levels.size()
+	
+	# Randomize player faction
+	player_faction.selected = randi() % factions.size()
+	
+	# Randomize player threat level
+	player_threat.selected = randi() % threat_levels.size()
+
+func _on_randomize_npc_pressed():
+	# Randomize NPC competence levels (for dominant trait determination)
+	npc_diplomatic.selected = randi() % competence_levels.size()
+	npc_direct.selected = randi() % competence_levels.size()
+	npc_aggressive.selected = randi() % competence_levels.size()
+	npc_charming.selected = randi() % competence_levels.size()
+	npc_empathetic.selected = randi() % competence_levels.size()
+	
+	# Randomize NPC faction
+	npc_faction.selected = randi() % factions.size()
+	
+	# Randomize NPC threat level
+	npc_threat.selected = randi() % threat_levels.size()
