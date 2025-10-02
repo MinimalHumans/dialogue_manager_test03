@@ -25,18 +25,23 @@ func _init():
 	load_all_data()
 
 func load_all_data():
-	# Load player dialogue base
+	# Load player dialogue base - ALLOW MULTIPLE ENTRIES WITH SAME KEY
 	db.query("SELECT * FROM player_dialogue_base")
 	var i = 0
 	while i < db.query_result.size():
 		var row = db.query_result[i]
 		var key = str(row["dialogue_key"])
-		player_dialogue_cache[key] = {
+		
+		# Change structure to support multiple entries per key (like npc_responses)
+		if key not in player_dialogue_cache:
+			player_dialogue_cache[key] = []
+		
+		player_dialogue_cache[key].append({
 			"social_type": str(row["social_type"]) if row["social_type"] else null,
 			"dialogue_phase": str(row["dialogue_phase"]),
 			"base_text": str(row["base_text"]),
 			"notes": str(row["notes"]) if row["notes"] else ""
-		}
+		})
 		i += 1
 	
 	# Load competence modifiers
@@ -174,11 +179,13 @@ func load_all_data():
 		i += 1
 
 func get_player_dialogue(dialogue_key: String, social_type: String, competence_level: String) -> String:
-	if not player_dialogue_cache.has(dialogue_key):
+	if dialogue_key not in player_dialogue_cache:
 		return "ERROR: Dialogue key not found: " + dialogue_key
 	
-	var base_data = player_dialogue_cache[dialogue_key]
-	var base_text = base_data["base_text"]
+	# Randomly select from multiple entries with same key
+	var dialogue_options = player_dialogue_cache[dialogue_key]
+	var selected_dialogue = dialogue_options[randi() % dialogue_options.size()]
+	var base_text = selected_dialogue["base_text"]
 	
 	var modified_text = apply_competence_modifiers(base_text, competence_level)
 	modified_text = substitute_variables(modified_text)

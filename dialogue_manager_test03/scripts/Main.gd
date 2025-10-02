@@ -211,25 +211,26 @@ func show_accept_or_negotiate_options():
 	for child in options_container.get_children():
 		child.queue_free()
 	
-	# Pull button text from database
-	var accept_text = dialogue_system.get_player_dialogue("price_accept_button", "", "ADEQUATE")
-	var negotiate_text = dialogue_system.get_player_dialogue("price_negotiate_button", "", "ADEQUATE")
+	# System randomly selects from all entries with these keys in the database
+	var faction_key_accept = "price_accept_" + conversation_state.player_faction.to_lower()
+	var faction_key_negotiate = "price_negotiate_" + conversation_state.player_faction.to_lower()
+	
+	var accept_text = dialogue_system.get_player_dialogue(faction_key_accept, "", "ADEQUATE")
+	var negotiate_text = dialogue_system.get_player_dialogue(faction_key_negotiate, "", "ADEQUATE")
 	
 	var accept_button = Button.new()
 	accept_button.text = accept_text
-	accept_button.pressed.connect(_on_accept_price_pressed)
+	accept_button.pressed.connect(_on_accept_price_pressed.bind(accept_text))
 	options_container.add_child(accept_button)
 	
 	var negotiate_button = Button.new()
 	negotiate_button.text = negotiate_text
-	negotiate_button.pressed.connect(_on_try_negotiate_pressed)
+	negotiate_button.pressed.connect(_on_try_negotiate_pressed.bind(negotiate_text))
 	options_container.add_child(negotiate_button)
 
-func _on_accept_price_pressed():
-	# Player accepts the quoted price with faction-flavored response
-	var faction_key = "price_accept_" + conversation_state.player_faction.to_lower()
-	var player_message = dialogue_system.get_player_dialogue(faction_key, "", "ADEQUATE")
-	add_player_message(player_message)
+func _on_accept_price_pressed(stored_text: String):
+	# Use the exact text shown in the button
+	add_player_message(stored_text)
 	
 	# NPC confirms with success message and faction farewell
 	var success_response = dialogue_system.get_conversation_flow("success_confirm")
@@ -237,11 +238,9 @@ func _on_accept_price_pressed():
 	add_npc_message(success_response + " " + farewell)
 	end_conversation_clean(true)
 
-func _on_try_negotiate_pressed():
-	# Player initiates negotiation with faction-flavored intro
-	var faction_key = "price_negotiate_" + conversation_state.player_faction.to_lower()
-	var player_message = dialogue_system.get_player_dialogue(faction_key, "", "ADEQUATE")
-	add_player_message(player_message)
+func _on_try_negotiate_pressed(stored_text: String):
+	# Use the exact text shown in the button
+	add_player_message(stored_text)
 	
 	# NPC responds based on personality
 	var npc_response = dialogue_system.get_npc_response(
@@ -304,25 +303,26 @@ func show_final_choice():
 	for child in options_container.get_children():
 		child.queue_free()
 	
-	# Pull button text from database
-	var accept_original_text = dialogue_system.get_player_dialogue("final_accept_button", "", "ADEQUATE")
-	var walk_away_text = dialogue_system.get_player_dialogue("final_reject_button", "", "ADEQUATE")
+	# System randomly selects from all entries with these keys in the database
+	var faction_key_accept = "final_accept_" + conversation_state.player_faction.to_lower()
+	var faction_key_reject = "final_reject_" + conversation_state.player_faction.to_lower()
+	
+	var accept_original_text = dialogue_system.get_player_dialogue(faction_key_accept, "", "ADEQUATE")
+	var walk_away_text = dialogue_system.get_player_dialogue(faction_key_reject, "", "ADEQUATE")
 	
 	var accept_original_button = Button.new()
 	accept_original_button.text = accept_original_text
-	accept_original_button.pressed.connect(_on_accept_original_price)
+	accept_original_button.pressed.connect(_on_accept_original_price.bind(accept_original_text))
 	options_container.add_child(accept_original_button)
 	
 	var walk_away_button = Button.new()
 	walk_away_button.text = walk_away_text
-	walk_away_button.pressed.connect(_on_walk_away)
+	walk_away_button.pressed.connect(_on_walk_away.bind(walk_away_text))
 	options_container.add_child(walk_away_button)
 
-func _on_accept_original_price():
-	# Player caves with faction-flavored response
-	var faction_key = "final_accept_" + conversation_state.player_faction.to_lower()
-	var player_message = dialogue_system.get_player_dialogue(faction_key, "", "ADEQUATE")
-	add_player_message(player_message)
+func _on_accept_original_price(stored_text: String):
+	# Use the exact text shown in the button
+	add_player_message(stored_text)
 	
 	# NPC grudgingly accepts with personality-based response
 	var npc_response = dialogue_system.get_npc_response(
@@ -337,11 +337,9 @@ func _on_accept_original_price():
 	add_npc_message(npc_response)
 	end_conversation_clean(true)
 
-func _on_walk_away():
-	# Player walks away with faction-flavored response
-	var faction_key = "final_reject_" + conversation_state.player_faction.to_lower()
-	var player_message = dialogue_system.get_player_dialogue(faction_key, "", "ADEQUATE")
-	add_player_message(player_message)
+func _on_walk_away(stored_text: String):
+	# Use the exact text shown in the button
+	add_player_message(stored_text)
 	
 	# NPC dismisses with polite ending and farewell
 	var dismissal = dialogue_system.get_conversation_flow("polite_dismissal")
