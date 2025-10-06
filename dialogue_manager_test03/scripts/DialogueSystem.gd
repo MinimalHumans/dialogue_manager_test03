@@ -327,45 +327,38 @@ func get_threat_modifier(threat_difference: String, reaction_type: String, inten
 func substitute_variables(text: String, competence_level: String = "ADEQUATE") -> String:
 	var result = text
 	
-	# DEBUG: Show what competence level we're working with
-	print("=== SUBSTITUTE VARIABLES DEBUG ===")
-	print("Input text: ", text)
-	print("Competence level: ", competence_level)
+	# Calculate offer price based on competence level
+	# Base price is 100, competence determines how much discount player can negotiate
+	var base_price = 100
+	var discount_percent = 0
 	
-	# Competence-based discount determination
-	# Higher competence = steeper discounts
-	var discount_value = "70"  # Default ADEQUATE = 30% off
 	match competence_level:
 		"INCOMPETENT":
-			discount_value = "90"  # 10% off
+			discount_percent = 10  # Can only get 10% off
 		"STRUGGLING":
-			discount_value = "80"  # 20% off
+			discount_percent = 20  # Can get 20% off
 		"ADEQUATE":
-			discount_value = "70"  # 30% off
+			discount_percent = 30  # Can get 30% off
 		"NATURAL":
-			discount_value = "60"  # 40% off
+			discount_percent = 40  # Can get 40% off
 		"MASTERFUL":
-			discount_value = "50"  # 50% off
+			discount_percent = 50  # Can get 50% off
 	
-	print("Discount value calculated: ", discount_value)
+	var offer_price = base_price - (base_price * discount_percent / 100)
 	
-	# Replace the negotiated discount with competence-appropriate value
-	result = result.replace("[NEGOTIATED_DISCOUNT]", discount_value)
+	# Debug output
+	print("=== PRICE CALCULATION DEBUG ===")
+	print("Competence level: ", competence_level)
+	print("Discount percent: ", discount_percent, "%")
+	print("Offer price: ", offer_price)
+	print("==============================")
 	
-	# Standard price substitutions
-	result = result.replace("[PRICE]", "100")
-	result = result.replace("[PRICE-10%]", "90")
-	result = result.replace("[PRICE-20%]", "80")
-	result = result.replace("[PRICE-25%]", "75")
-	result = result.replace("[PRICE-30%]", "70")
-	result = result.replace("[PRICE-40%]", "60")
-	result = result.replace("[PRICE-50%]", "50")
+	# Replace variables
+	result = result.replace("[OFFER_PRICE]", str(int(offer_price)))
+	result = result.replace("[PRICE]", str(base_price))
 	result = result.replace("[LAST-PRICE]", "85")
 	result = result.replace("[FACTION_INSULT]", "outsider")
 	result = result.replace("[THREAT_LEVEL]", "minor")
-	
-	print("Output text: ", result)
-	print("==================================")
 	
 	return result
 
