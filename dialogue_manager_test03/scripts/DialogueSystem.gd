@@ -328,34 +328,34 @@ func substitute_variables(text: String, competence_level: String = "ADEQUATE") -
 	var result = text
 	
 	# Calculate offer price based on competence level
-	# Base price is 100, competence determines how much discount player can negotiate
 	var base_price = 100
 	var discount_percent = 0
 	
 	match competence_level:
 		"INCOMPETENT":
-			discount_percent = 10  # Can only get 10% off
+			discount_percent = 10
 		"STRUGGLING":
-			discount_percent = 20  # Can get 20% off
+			discount_percent = 20
 		"ADEQUATE":
-			discount_percent = 30  # Can get 30% off
+			discount_percent = 30
 		"NATURAL":
-			discount_percent = 40  # Can get 40% off
+			discount_percent = 40
 		"MASTERFUL":
-			discount_percent = 50  # Can get 50% off
+			discount_percent = 50
+		_:
+			discount_percent = 30
 	
 	var offer_price = base_price - (base_price * discount_percent / 100)
 	
-	# Debug output
-	print("=== PRICE CALCULATION DEBUG ===")
-	print("Competence level: ", competence_level)
-	print("Discount percent: ", discount_percent, "%")
-	print("Offer price: ", offer_price)
-	print("==============================")
+	# Counter-offer is halfway between base and player's offer
+	var counter_price = (base_price + offer_price) / 2
 	
-	# Replace variables
+	# Replace the dynamic prices
 	result = result.replace("[OFFER_PRICE]", str(int(offer_price)))
-	result = result.replace("[PRICE]", str(base_price))
+	result = result.replace("[COUNTER_PRICE]", str(int(counter_price)))
+	
+	# Replace static price references
+	result = result.replace("[PRICE]", "100")
 	result = result.replace("[LAST-PRICE]", "85")
 	result = result.replace("[FACTION_INSULT]", "outsider")
 	result = result.replace("[THREAT_LEVEL]", "minor")

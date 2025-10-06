@@ -1,4 +1,4 @@
-# Main.gd - Clean version with fixed syntax
+# Main.gd - With counter-offer system
 extends Control
 
 # UI References
@@ -179,15 +179,12 @@ func get_competence_value(competence: String) -> int:
 func start_conversation():
 	var greeting = dialogue_system.get_faction_flavor(conversation_state.npc_faction, "greeting")
 	add_npc_message(greeting)
-	
-	# Show initial request options instead of auto-playing
 	show_initial_request_options()
 
 func show_initial_request_options():
 	for child in options_container.get_children():
 		child.queue_free()
 	
-	# Add the initial fuel request as a clickable option
 	var button = Button.new()
 	button.text = "I need to refuel my ship."
 	button.pressed.connect(_on_initial_request_pressed)
@@ -197,10 +194,9 @@ func _on_initial_request_pressed():
 	var initial_request = dialogue_system.get_player_dialogue("fuel_request_initial", "", "ADEQUATE")
 	add_player_message(initial_request)
 	
-	# NPC quotes a specific price instead of just agreeing
 	var price_quote = dialogue_system.get_npc_response(
 		conversation_state.npc_trait,
-		"negotiation",  # Use negotiation responses which include prices
+		"negotiation",
 		conversation_state.get_threat_context()
 	)
 	
@@ -211,7 +207,6 @@ func show_accept_or_negotiate_options():
 	for child in options_container.get_children():
 		child.queue_free()
 	
-	# System randomly selects from all entries with these keys in the database
 	var faction_key_accept = "price_accept_" + conversation_state.player_faction.to_lower()
 	var faction_key_negotiate = "price_negotiate_" + conversation_state.player_faction.to_lower()
 	
@@ -229,20 +224,16 @@ func show_accept_or_negotiate_options():
 	options_container.add_child(negotiate_button)
 
 func _on_accept_price_pressed(stored_text: String):
-	# Use the exact text shown in the button
 	add_player_message(stored_text)
 	
-	# NPC confirms with success message and faction farewell
 	var success_response = dialogue_system.get_conversation_flow("success_confirm")
 	var farewell = dialogue_system.get_faction_flavor(conversation_state.npc_faction, "farewell")
 	add_npc_message(success_response + " " + farewell)
 	end_conversation_clean(true)
 
 func _on_try_negotiate_pressed(stored_text: String):
-	# Use the exact text shown in the button
 	add_player_message(stored_text)
 	
-	# NPC responds based on personality
 	var npc_response = dialogue_system.get_npc_response(
 		conversation_state.npc_trait,
 		"negotiate_acknowledge",
@@ -261,29 +252,19 @@ func show_negotiation_tactics():
 	for approach in approaches:
 		var button = Button.new()
 		var competence = conversation_state.get_player_competence(approach)
-		
-		# DEBUG: Check what competence is being retrieved
-		print("=== NEGOTIATION BUTTON CREATION DEBUG ===")
-		print("Approach: ", approach)
-		print("Competence retrieved: ", competence)
-		print("=========================================")
-		
-		# Generate dialogue text ONCE and store it
 		var dialogue_text = dialogue_system.get_player_dialogue("fuel_negotiate_" + approach.to_lower(), approach, competence)
 		
 		button.text = approach.capitalize() + ": " + dialogue_text
-		# Pass the stored dialogue text to the callback to avoid regeneration
 		button.pressed.connect(_on_negotiation_tactic_pressed.bind(approach, dialogue_text))
 		options_container.add_child(button)
 
 func _on_negotiation_tactic_pressed(approach: String, stored_dialogue_text: String):
-	# Use the stored dialogue text instead of regenerating it
 	add_player_message(stored_dialogue_text)
 	
 	var success = calculate_dialogue_success(approach)
 	
 	if success:
-		# NPC accepts the counter-offer (from database, not hardcoded array)
+		# NPC accepts the counter-offer
 		var npc_response = dialogue_system.get_npc_response(
 			conversation_state.npc_trait,
 			"counter_accept",
@@ -297,41 +278,118 @@ func _on_negotiation_tactic_pressed(approach: String, stored_dialogue_text: Stri
 		add_npc_message(npc_response)
 		end_conversation_clean(true)
 	else:
-		# NPC rejects the counter-offer - offer final choice
-		var rejection_response = dialogue_system.get_npc_response(
-			conversation_state.npc_trait,
-			"rejection",
-			conversation_state.get_threat_context()
-		)
-		add_npc_message(rejection_response)
-		show_final_choice()
+		# Determine if NPC makes counter-offer
+		if should_npc_counter_offer(approach):
+			# NPC makes counter-offer
+			var counter_offer = dialogue_system.get_npc_response(
+				conversation_state.npc_trait,
+				"counter_offer",
+				""
+			)
+			add_npc_message(counter_offer)
+			show_counter_offer_choice()
+		else:
+			# NPC rejects outright
+			var rejection_response = dialogue_system.get_npc_response(
+				conversation_state.npc_trait,
+				"rejection",
+				conversation_state.get_threat_context()
+			)
+			add_npc_message(rejection_response)
+			show_grudging_choice()
 
-func show_final_choice():
+func should_npc_counter_offer(approach: String) -> bool:
+	var base_chance = 0.0
+	
+	# Personality affects willingness to negotiate
+	match conversation_state.npc_trait:
+		"EMPATHETIC":
+			base_chance = 0.7  # Very willing to find middle ground
+		"CHARMING":
+			base_chance = 0.6  # Likes to keep things friendly
+		"DIPLOMATIC":
+			base_chance = 0.5  # Professional negotiator
+		"DIRECT":
+			base_chance = 0.3  # Prefers clear decisions
+		"AGGRESSIVE":
+			base_chance = 0.2  # Take it or leave it attitude
+	
+	# Higher player competence increases counter-offer chance
+	var competence = conversation_state.get_player_competence(approach)
+	var competence_bonus = 0.0
+	match competence:
+		"MASTERFUL":
+			competence_bonus = 0.2
+		"NATURAL":
+			competence_bonus = 0.1
+		"ADEQUATE":
+			competence_bonus = 0.0
+		"STRUGGLING":
+			competence_bonus = -0.1
+		"INCOMPETENT":
+			competence_bonus = -0.2
+	
+	var final_chance = base_chance + competence_bonus
+	
+	print("=== COUNTER-OFFER CHANCE ===")
+	print("Base chance (", conversation_state.npc_trait, "): ", base_chance)
+	print("Competence bonus: ", competence_bonus)
+	print("Final chance: ", final_chance)
+	print("===========================")
+	
+	return randf() < final_chance
+
+func show_counter_offer_choice():
 	for child in options_container.get_children():
 		child.queue_free()
 	
-	# System randomly selects from all entries with these keys in the database
-	var faction_key_accept = "final_accept_" + conversation_state.player_faction.to_lower()
+	var faction_key_accept = "enthusiastic_accept_" + conversation_state.player_faction.to_lower()
 	var faction_key_reject = "final_reject_" + conversation_state.player_faction.to_lower()
 	
-	var accept_original_text = dialogue_system.get_player_dialogue(faction_key_accept, "", "ADEQUATE")
-	var walk_away_text = dialogue_system.get_player_dialogue(faction_key_reject, "", "ADEQUATE")
+	var accept_text = dialogue_system.get_player_dialogue(faction_key_accept, "", "ADEQUATE")
+	var reject_text = dialogue_system.get_player_dialogue(faction_key_reject, "", "ADEQUATE")
 	
-	var accept_original_button = Button.new()
-	accept_original_button.text = accept_original_text
-	accept_original_button.pressed.connect(_on_accept_original_price.bind(accept_original_text))
-	options_container.add_child(accept_original_button)
+	var accept_button = Button.new()
+	accept_button.text = accept_text
+	accept_button.pressed.connect(_on_accept_counter_offer.bind(accept_text))
+	options_container.add_child(accept_button)
 	
-	var walk_away_button = Button.new()
-	walk_away_button.text = walk_away_text
-	walk_away_button.pressed.connect(_on_walk_away.bind(walk_away_text))
-	options_container.add_child(walk_away_button)
+	var reject_button = Button.new()
+	reject_button.text = reject_text
+	reject_button.pressed.connect(_on_walk_away.bind(reject_text))
+	options_container.add_child(reject_button)
 
-func _on_accept_original_price(stored_text: String):
-	# Use the exact text shown in the button
+func show_grudging_choice():
+	for child in options_container.get_children():
+		child.queue_free()
+	
+	var faction_key_accept = "grudging_accept_" + conversation_state.player_faction.to_lower()
+	var faction_key_reject = "final_reject_" + conversation_state.player_faction.to_lower()
+	
+	var accept_text = dialogue_system.get_player_dialogue(faction_key_accept, "", "ADEQUATE")
+	var reject_text = dialogue_system.get_player_dialogue(faction_key_reject, "", "ADEQUATE")
+	
+	var accept_button = Button.new()
+	accept_button.text = accept_text
+	accept_button.pressed.connect(_on_grudging_accept_original.bind(accept_text))
+	options_container.add_child(accept_button)
+	
+	var reject_button = Button.new()
+	reject_button.text = reject_text
+	reject_button.pressed.connect(_on_walk_away.bind(reject_text))
+	options_container.add_child(reject_button)
+
+func _on_accept_counter_offer(stored_text: String):
 	add_player_message(stored_text)
 	
-	# NPC grudgingly accepts with personality-based response
+	var success_confirm = dialogue_system.get_conversation_flow("success_confirm")
+	var farewell = dialogue_system.get_faction_flavor(conversation_state.npc_faction, "farewell")
+	add_npc_message(success_confirm + " " + farewell)
+	end_conversation_clean(true)
+
+func _on_grudging_accept_original(stored_text: String):
+	add_player_message(stored_text)
+	
 	var npc_response = dialogue_system.get_npc_response(
 		conversation_state.npc_trait,
 		"grudging_accept",
@@ -345,111 +403,14 @@ func _on_accept_original_price(stored_text: String):
 	end_conversation_clean(true)
 
 func _on_walk_away(stored_text: String):
-	# Use the exact text shown in the button
 	add_player_message(stored_text)
 	
-	# NPC dismisses with polite ending and farewell
 	var dismissal = dialogue_system.get_conversation_flow("polite_dismissal")
 	var farewell = dialogue_system.get_faction_flavor(conversation_state.npc_faction, "farewell")
 	add_npc_message(dismissal + " " + farewell)
 	end_conversation_clean(false)
 
-func show_social_options():
-	for child in options_container.get_children():
-		child.queue_free()
-	
-	var approaches = ["DIPLOMATIC", "DIRECT", "AGGRESSIVE", "CHARMING", "EMPATHETIC"]
-	
-	for approach in approaches:
-		var button = Button.new()
-		var competence = conversation_state.get_player_competence(approach)
-		var dialogue_text = dialogue_system.get_player_dialogue("fuel_social_" + approach.to_lower(), approach, competence)
-		
-		button.text = approach.capitalize() + ": " + dialogue_text
-		button.pressed.connect(_on_social_option_pressed.bind(approach))
-		options_container.add_child(button)
-
-func _on_social_option_pressed(approach: String):
-	var competence = conversation_state.get_player_competence(approach)
-	var dialogue_text = dialogue_system.get_player_dialogue("fuel_social_" + approach.to_lower(), approach, competence)
-	
-	add_player_message(dialogue_text)
-	
-	var success = calculate_dialogue_success(approach)
-	
-	if success:
-		var npc_response = dialogue_system.get_npc_response(
-			conversation_state.npc_trait,
-			"negotiation",
-			conversation_state.get_threat_context()
-		)
-		add_npc_message(npc_response)
-		show_negotiation_options()
-	else:
-		var response_type = "rejection"
-		if competence == "INCOMPETENT":
-			response_type = "incompetence_reaction"
-		
-		var npc_response = dialogue_system.get_npc_response(
-			conversation_state.npc_trait,
-			response_type,
-			conversation_state.get_threat_context()
-		)
-		add_npc_message(npc_response)
-		
-		if conversation_state.attempt_count < 2:
-			show_second_attempt_options()
-		else:
-			end_conversation_clean(false)
-
-func show_negotiation_options():
-	for child in options_container.get_children():
-		child.queue_free()
-	
-	var approaches = ["DIPLOMATIC", "DIRECT", "AGGRESSIVE", "CHARMING", "EMPATHETIC"]
-	
-	for approach in approaches:
-		var button = Button.new()
-		var competence = conversation_state.get_player_competence(approach)
-		var dialogue_text = dialogue_system.get_player_dialogue("fuel_negotiate_" + approach.to_lower(), approach, competence)
-		
-		button.text = approach.capitalize() + ": " + dialogue_text
-		button.pressed.connect(_on_negotiation_option_pressed.bind(approach))
-		options_container.add_child(button)
-
-func _on_negotiation_option_pressed(approach: String):
-	var competence = conversation_state.get_player_competence(approach)
-	var dialogue_text = dialogue_system.get_player_dialogue("fuel_negotiate_" + approach.to_lower(), approach, competence)
-	
-	add_player_message(dialogue_text)
-	
-	var success = calculate_dialogue_success(approach)
-	
-	if success:
-		# NPC accepts the counter-offer - add success confirmation
-		var npc_response = dialogue_system.get_npc_response(
-			conversation_state.npc_trait,
-			"agreement",
-			conversation_state.get_threat_context()
-		)
-		# Add a success confirmation from conversation flow
-		var success_confirm = dialogue_system.get_conversation_flow("success_confirm")
-		npc_response += " " + success_confirm
-		
-		add_npc_message(npc_response)
-		end_conversation_clean(true)
-	else:
-		# NPC rejects the counter-offer
-		var npc_response = dialogue_system.get_npc_response(
-			conversation_state.npc_trait,
-			"rejection",
-			conversation_state.get_threat_context()
-		)
-		add_npc_message(npc_response)
-		end_conversation_clean(false)
-
 func end_conversation_clean(success: bool):
-	# Clear options and add end indicator without additional NPC message
 	for child in options_container.get_children():
 		child.queue_free()
 	
@@ -464,122 +425,69 @@ func end_conversation_clean(success: bool):
 	end_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	options_container.add_child(end_label)
 
-func show_second_attempt_options():
-	conversation_state.attempt_count += 1
-	
-	for child in options_container.get_children():
-		child.queue_free()
-	
-	var approaches = ["DIPLOMATIC", "DIRECT", "AGGRESSIVE", "CHARMING", "EMPATHETIC"]
-	
-	for approach in approaches:
-		var button = Button.new()
-		var competence = conversation_state.get_player_competence(approach)
-		var dialogue_text = dialogue_system.get_player_dialogue("fuel_second_" + approach.to_lower(), approach, competence)
-		
-		button.text = approach.capitalize() + ": " + dialogue_text
-		button.pressed.connect(_on_second_attempt_pressed.bind(approach))
-		options_container.add_child(button)
-
-func _on_second_attempt_pressed(approach: String):
-	var competence = conversation_state.get_player_competence(approach)
-	var dialogue_text = dialogue_system.get_player_dialogue("fuel_second_" + approach.to_lower(), approach, competence)
-	
-	add_player_message(dialogue_text)
-	
-	var success = calculate_dialogue_success(approach)
-	
-	if success:
-		var npc_response = dialogue_system.get_npc_response(
-			conversation_state.npc_trait,
-			"agreement",
-			conversation_state.get_threat_context()
-		)
-		add_npc_message(npc_response)
-		show_negotiation_options()
-	else:
-		var npc_response = dialogue_system.get_npc_response(
-			conversation_state.npc_trait,
-			"rejection",
-			conversation_state.get_threat_context()
-		)
-		add_npc_message(npc_response)
-		end_conversation_clean(false)
-
 func calculate_dialogue_success(approach: String) -> bool:
 	var competence = conversation_state.get_player_competence(approach)
 	var base_chance = get_competence_success_rate(competence)
 	
-	# =============================================================================
-	# NEGOTIATION SUCCESS MODIFIERS - Easily tunable for game balance
-	# =============================================================================
-	
-	# 1. TRAIT COMPATIBILITY (Original System)
+	# Trait compatibility
 	var trait_match = 1.0
 	if approach == conversation_state.npc_trait:
-		trait_match = 1.3  # TUNING: Perfect match bonus (30% increase)
+		trait_match = 1.3
 	elif is_opposing_approach(approach, conversation_state.npc_trait):
-		trait_match = 0.7  # TUNING: Opposing approach penalty (30% decrease)
+		trait_match = 0.7
 	
-	# 2. FACTION RELATIONSHIP (Original System)
+	# Faction relationship
 	var faction_mod = dialogue_system.get_faction_relationship(
 		conversation_state.player_faction, 
 		conversation_state.npc_faction
 	)
 	
-	# 3. NPC PERSONALITY PRICE FLEXIBILITY (New System)
-	# How willing each personality type is to negotiate on price
+	# NPC personality price flexibility
 	var personality_flexibility = 1.0
 	match conversation_state.npc_trait:
 		"AGGRESSIVE":
-			personality_flexibility = 0.7  # TUNING: Tough negotiators, "take it or leave it"
+			personality_flexibility = 0.7
 		"DIRECT":
-			personality_flexibility = 0.9  # TUNING: Straightforward, limited flexibility
+			personality_flexibility = 0.9
 		"DIPLOMATIC":
-			personality_flexibility = 1.1  # TUNING: Reasonable, seeks compromise
+			personality_flexibility = 1.1
 		"CHARMING":
-			personality_flexibility = 1.2  # TUNING: Flexible, wants to keep everyone happy
+			personality_flexibility = 1.2
 		"EMPATHETIC":
-			personality_flexibility = 1.3  # TUNING: Most accommodating, considers player needs
+			personality_flexibility = 1.3
 	
-	# 4. THREAT LEVEL DYNAMICS (New System)
-	# Power dynamics affect negotiation success
+	# Threat level dynamics
 	var threat_modifier = 1.0
 	var player_threat_val = conversation_state.threat_values.get(conversation_state.player_threat_level, 3)
 	var npc_threat_val = conversation_state.threat_values.get(conversation_state.npc_threat_level, 3)
 	var threat_difference = player_threat_val - npc_threat_val
 	
 	if threat_difference >= 2:
-		threat_modifier = 1.3  # TUNING: Strong intimidation factor
+		threat_modifier = 1.3
 	elif threat_difference == 1:
-		threat_modifier = 1.1  # TUNING: Mild intimidation
+		threat_modifier = 1.1
 	elif threat_difference == 0:
-		threat_modifier = 1.0  # TUNING: Equal footing
+		threat_modifier = 1.0
 	elif threat_difference == -1:
-		threat_modifier = 0.9  # TUNING: Less leverage
+		threat_modifier = 0.9
 	elif threat_difference <= -2:
-		threat_modifier = 0.7  # TUNING: Easily dismissed
+		threat_modifier = 0.7
 	
-	# SPECIAL CASE: Empathetic NPCs feel sympathy for weak players instead of contempt
+	# Empathetic NPCs sympathize with weak players
 	if conversation_state.npc_trait == "EMPATHETIC" and threat_difference < 0:
-		threat_modifier = 1.2  # TUNING: Sympathy bonus overrides intimidation penalty
+		threat_modifier = 1.2
 	
-	# 5. CALCULATE BASE SUCCESS CHANCE
+	# Calculate base success chance
 	var success_chance = base_chance * trait_match * faction_mod * personality_flexibility * threat_modifier
 	
-	# 6. PITY BONUS (New System) - Applied AFTER multipliers as additive bonus
-	# Empathetic and Charming NPCs take pity on struggling players
+	# Pity bonus
 	var pity_bonus = 0.0
 	if (conversation_state.npc_trait == "EMPATHETIC" or conversation_state.npc_trait == "CHARMING"):
 		if competence == "INCOMPETENT" or competence == "STRUGGLING":
-			pity_bonus = 0.15  # TUNING: 15% additive bonus for incompetent/struggling players
+			pity_bonus = 0.15
 	
-	# Final success chance with pity bonus
 	var final_chance = success_chance + pity_bonus
 	
-	# =============================================================================
-	# DEBUG INFO (Remove or comment out for production)
-	# =============================================================================
 	print("=== NEGOTIATION SUCCESS CALCULATION ===")
 	print("Base Chance (", competence, "): ", base_chance)
 	print("Trait Match: ", trait_match)
@@ -616,20 +524,6 @@ func is_opposing_approach(approach1: String, approach2: String) -> bool:
 	}
 	return opposites.get(approach1, "") == approach2
 
-func end_conversation(success: bool):
-	for child in options_container.get_children():
-		child.queue_free()
-	
-	var flow_type = "polite_dismissal" if success else "hostile_ending"
-	var ending_text = dialogue_system.get_conversation_flow(flow_type)
-	add_npc_message(ending_text)
-	
-	var end_label = Label.new()
-	end_label.text = "--- Conversation Ended ---"
-	end_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	end_label.add_theme_color_override("font_color", Color.GRAY)
-	options_container.add_child(end_label)
-
 func add_player_message(text: String):
 	chat_display.text += "[color=lightblue]Player: " + text + "[/color]\n\n"
 	scroll_to_bottom()
@@ -643,29 +537,19 @@ func scroll_to_bottom():
 	chat_scroll.scroll_vertical = chat_scroll.get_v_scroll_bar().max_value
 
 func _on_randomize_player_pressed():
-	# Randomize player competence levels
 	player_diplomatic.selected = randi() % competence_levels.size()
 	player_direct.selected = randi() % competence_levels.size()
 	player_aggressive.selected = randi() % competence_levels.size()
 	player_charming.selected = randi() % competence_levels.size()
 	player_empathetic.selected = randi() % competence_levels.size()
-	
-	# Randomize player faction
 	player_faction.selected = randi() % factions.size()
-	
-	# Randomize player threat level
 	player_threat.selected = randi() % threat_levels.size()
 
 func _on_randomize_npc_pressed():
-	# Randomize NPC competence levels (for dominant trait determination)
 	npc_diplomatic.selected = randi() % competence_levels.size()
 	npc_direct.selected = randi() % competence_levels.size()
 	npc_aggressive.selected = randi() % competence_levels.size()
 	npc_charming.selected = randi() % competence_levels.size()
 	npc_empathetic.selected = randi() % competence_levels.size()
-	
-	# Randomize NPC faction
 	npc_faction.selected = randi() % factions.size()
-	
-	# Randomize NPC threat level
 	npc_threat.selected = randi() % threat_levels.size()
