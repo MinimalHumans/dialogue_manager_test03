@@ -204,10 +204,6 @@ func _on_initial_request_pressed():
 		conversation_state.get_threat_context()
 	)
 	
-	var faction_flavor = dialogue_system.get_faction_flavor(conversation_state.npc_faction, "agreement")
-	if faction_flavor:
-		price_quote = faction_flavor + " " + price_quote
-	
 	add_npc_message(price_quote)
 	show_accept_or_negotiate_options()
 
@@ -265,6 +261,13 @@ func show_negotiation_tactics():
 	for approach in approaches:
 		var button = Button.new()
 		var competence = conversation_state.get_player_competence(approach)
+		
+		# DEBUG: Check what competence is being retrieved
+		print("=== NEGOTIATION BUTTON CREATION DEBUG ===")
+		print("Approach: ", approach)
+		print("Competence retrieved: ", competence)
+		print("=========================================")
+		
 		# Generate dialogue text ONCE and store it
 		var dialogue_text = dialogue_system.get_player_dialogue("fuel_negotiate_" + approach.to_lower(), approach, competence)
 		

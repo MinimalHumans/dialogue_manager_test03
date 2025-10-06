@@ -188,7 +188,8 @@ func get_player_dialogue(dialogue_key: String, social_type: String, competence_l
 	var base_text = selected_dialogue["base_text"]
 	
 	var modified_text = apply_competence_modifiers(base_text, competence_level)
-	modified_text = substitute_variables(modified_text)
+	# Pass competence_level to substitute_variables for competence-based discounts
+	modified_text = substitute_variables(modified_text, competence_level)
 	
 	return modified_text
 
@@ -263,7 +264,8 @@ func get_npc_response(dominant_trait: String, response_type: String, threat_cont
 	var selected_response = filtered_responses[randi() % filtered_responses.size()]
 	var response_text = selected_response["text"]
 	
-	response_text = substitute_variables(response_text)
+	# For NPC responses, we don't have player competence context, so use default
+	response_text = substitute_variables(response_text, "ADEQUATE")
 	
 	return response_text
 
@@ -322,17 +324,48 @@ func get_threat_modifier(threat_difference: String, reaction_type: String, inten
 	
 	return ""
 
-func substitute_variables(text: String) -> String:
+func substitute_variables(text: String, competence_level: String = "ADEQUATE") -> String:
 	var result = text
 	
+	# DEBUG: Show what competence level we're working with
+	print("=== SUBSTITUTE VARIABLES DEBUG ===")
+	print("Input text: ", text)
+	print("Competence level: ", competence_level)
+	
+	# Competence-based discount determination
+	# Higher competence = steeper discounts
+	var discount_value = "70"  # Default ADEQUATE = 30% off
+	match competence_level:
+		"INCOMPETENT":
+			discount_value = "90"  # 10% off
+		"STRUGGLING":
+			discount_value = "80"  # 20% off
+		"ADEQUATE":
+			discount_value = "70"  # 30% off
+		"NATURAL":
+			discount_value = "60"  # 40% off
+		"MASTERFUL":
+			discount_value = "50"  # 50% off
+	
+	print("Discount value calculated: ", discount_value)
+	
+	# Replace the negotiated discount with competence-appropriate value
+	result = result.replace("[NEGOTIATED_DISCOUNT]", discount_value)
+	
+	# Standard price substitutions
 	result = result.replace("[PRICE]", "100")
+	result = result.replace("[PRICE-10%]", "90")
 	result = result.replace("[PRICE-20%]", "80")
 	result = result.replace("[PRICE-25%]", "75")
 	result = result.replace("[PRICE-30%]", "70")
 	result = result.replace("[PRICE-40%]", "60")
+	result = result.replace("[PRICE-50%]", "50")
 	result = result.replace("[LAST-PRICE]", "85")
 	result = result.replace("[FACTION_INSULT]", "outsider")
 	result = result.replace("[THREAT_LEVEL]", "minor")
+	
+	print("Output text: ", result)
+	print("==================================")
 	
 	return result
 
