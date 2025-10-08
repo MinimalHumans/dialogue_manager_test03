@@ -180,15 +180,306 @@ func start_conversation():
 	var greeting = dialogue_system.get_faction_flavor(conversation_state.npc_faction, "greeting")
 	add_npc_message(greeting)
 	show_initial_request_options()
+	
+# Add to your Main.gd script
+
+# Call this after initial greeting to show info request option
+func show_info_request_option():
+	var button = Button.new()
+	var info_request = dialogue_system.get_player_dialogue("info_request_initial", "", "ADEQUATE")
+	button.text = info_request
+	button.pressed.connect(_on_info_request_pressed.bind(info_request))
+	options_container.add_child(button)
+
+func _on_info_request_pressed(stored_text: String):
+	add_player_message(stored_text)
+	
+	# Determine if NPC charges for info
+	if should_npc_charge_for_info():
+		# NPC wants payment
+		var paid_response = dialogue_system.get_npc_response(
+			conversation_state.npc_trait,
+			"information_paid",
+			""
+		)
+		add_npc_message(paid_response)
+		show_info_accept_or_negotiate_options()
+	else:
+		# NPC shares freely
+		var free_response_with_description = dialogue_system.get_info_response_with_description(
+			conversation_state.npc_trait,
+			conversation_state.npc_faction,
+			1,  # System ID - hardcoded to Helios for now
+			true
+		)
+		add_npc_message(free_response_with_description)
+		
+		# End with farewell
+		var farewell = dialogue_system.get_faction_flavor(conversation_state.npc_faction, "farewell")
+		add_npc_message(farewell)
+		end_conversation_clean(true)
+
+func should_npc_charge_for_info() -> bool:
+	var base_charge_chance = 0.5
+	
+	# Personality affects willingness to share freely
+	match conversation_state.npc_trait:
+		"EMPATHETIC":
+			base_charge_chance = 0.2  # Usually shares
+		"CHARMING":
+			base_charge_chance = 0.3
+		"DIPLOMATIC":
+			base_charge_chance = 0.5
+		"DIRECT":
+			base_charge_chance = 0.6
+		"AGGRESSIVE":
+			base_charge_chance = 0.8  # Usually charges
+	
+	# Good faction relationships reduce charge chance
+	var faction_mod = dialogue_system.get_faction_relationship(
+		conversation_state.player_faction,
+		conversation_state.npc_faction
+	)
+	
+	# Adjust based on faction relationship
+	# Allied (1.2) = 0.83x charge chance, Opposing (0.8) = 1.25x charge chance
+	var relationship_modifier = 2.0 - faction_mod  # Inverted: better relations = lower chance
+	
+	# Threat dynamics - higher threat players get charged more often
+	var threat_modifier = 1.0
+	var player_threat_val = conversation_state.threat_values.get(conversation_state.player_threat_level, 3)
+	var npc_threat_val = conversation_state.threat_values.get(conversation_state.npc_threat_level, 3)
+	var threat_difference = player_threat_val - npc_threat_val
+	
+	if threat_difference >= 2:
+		threat_modifier = 0.7  # Intimidated, less likely to charge
+	elif threat_difference == 1:
+		threat_modifier = 0.9
+	elif threat_difference == 0:
+		threat_modifier = 1.0
+	elif threat_difference == -1:
+		threat_modifier = 1.1
+	elif threat_difference <= -2:
+		threat_modifier = 1.3  # Player seems weak, more likely to charge
+	
+	var final_chance = base_charge_chance * relationship_modifier * threat_modifier
+	
+	print("=== INFO CHARGE CALCULATION ===")
+	print("Base chance (", conversation_state.npc_trait, "): ", base_charge_chance)
+	print("Relationship modifier: ", relationship_modifier)
+	print("Threat modifier: ", threat_modifier)
+	print("Final chance to charge: ", final_chance)
+	print("==============================")
+	
+	return randf() < final_chance
+
+func show_info_accept_or_negotiate_options():
+	for child in options_container.get_children():
+		child.queue_free()
+	
+	var faction_key_accept = "price_accept_" + conversation_state.player_faction.to_lower()
+	var faction_key_negotiate = "price_negotiate_" + conversation_state.player_faction.to_lower()
+	
+	var accept_text = dialogue_system.get_player_dialogue(faction_key_accept, "", "ADEQUATE")
+	var negotiate_text = dialogue_system.get_player_dialogue(faction_key_negotiate, "", "ADEQUATE")
+	
+	var accept_button = Button.new()
+	accept_button.text = accept_text
+	accept_button.pressed.connect(_on_accept_info_price.bind(accept_text))
+	options_container.add_child(accept_button)
+	
+	var negotiate_button = Button.new()
+	negotiate_button.text = negotiate_text
+	negotiate_button.pressed.connect(_on_negotiate_info_price.bind(negotiate_text))
+	options_container.add_child(negotiate_button)
+
+func _on_accept_info_price(stored_text: String):
+	add_player_message(stored_text)
+	
+	# NPC provides the information
+	var description = dialogue_system.build_system_description(
+		1,  # System ID - Helios for now
+		conversation_state.npc_faction
+	)
+	add_npc_message(description)
+	
+	# End with success and farewell
+	var success_confirm = dialogue_system.get_conversation_flow("success_confirm")
+	var farewell = dialogue_system.get_faction_flavor(conversation_state.npc_faction, "farewell")
+	add_npc_message(success_confirm + " " + farewell)
+	end_conversation_clean(true)
+
+func _on_negotiate_info_price(stored_text: String):
+	add_player_message(stored_text)
+	
+	var npc_response = dialogue_system.get_npc_response(
+		conversation_state.npc_trait,
+		"negotiate_acknowledge",
+		""
+	)
+	add_npc_message(npc_response)
+	
+	show_info_negotiation_tactics()
+
+func show_info_negotiation_tactics():
+	for child in options_container.get_children():
+		child.queue_free()
+	
+	var approaches = ["DIPLOMATIC", "DIRECT", "AGGRESSIVE", "CHARMING", "EMPATHETIC"]
+	
+	for approach in approaches:
+		var button = Button.new()
+		var competence = conversation_state.get_player_competence(approach)
+		var dialogue_text = dialogue_system.get_player_dialogue("fuel_negotiate_" + approach.to_lower(), approach, competence)
+		
+		button.text = approach.capitalize() + ": " + dialogue_text
+		button.pressed.connect(_on_info_negotiation_tactic.bind(approach, dialogue_text))
+		options_container.add_child(button)
+
+func _on_info_negotiation_tactic(approach: String, stored_dialogue_text: String):
+	add_player_message(stored_dialogue_text)
+	
+	var success = calculate_dialogue_success(approach)
+	
+	if success:
+		# NPC accepts and provides info
+		var npc_response = dialogue_system.get_npc_response(
+			conversation_state.npc_trait,
+			"counter_accept",
+			""
+		)
+		add_npc_message(npc_response)
+		
+		# Provide the system description
+		var description = dialogue_system.build_system_description(
+			1,  # System ID - Helios
+			conversation_state.npc_faction
+		)
+		add_npc_message(description)
+		
+		var farewell = dialogue_system.get_faction_flavor(conversation_state.npc_faction, "farewell")
+		add_npc_message(farewell)
+		end_conversation_clean(true)
+	else:
+		# Determine if NPC makes counter-offer
+		if should_npc_counter_offer(approach):
+			# NPC makes counter-offer
+			var counter_offer = dialogue_system.get_npc_response(
+				conversation_state.npc_trait,
+				"counter_offer",
+				""
+			)
+			add_npc_message(counter_offer)
+			show_info_counter_offer_choice()
+		else:
+			# NPC rejects outright
+			var rejection_response = dialogue_system.get_npc_response(
+				conversation_state.npc_trait,
+				"rejection",
+				conversation_state.get_threat_context()
+			)
+			add_npc_message(rejection_response)
+			show_info_grudging_choice()
+
+func show_info_counter_offer_choice():
+	for child in options_container.get_children():
+		child.queue_free()
+	
+	var faction_key_accept = "enthusiastic_accept_" + conversation_state.player_faction.to_lower()
+	var faction_key_reject = "final_reject_" + conversation_state.player_faction.to_lower()
+	
+	var accept_text = dialogue_system.get_player_dialogue(faction_key_accept, "", "ADEQUATE")
+	var reject_text = dialogue_system.get_player_dialogue(faction_key_reject, "", "ADEQUATE")
+	
+	var accept_button = Button.new()
+	accept_button.text = accept_text
+	accept_button.pressed.connect(_on_accept_info_counter_offer.bind(accept_text))
+	options_container.add_child(accept_button)
+	
+	var reject_button = Button.new()
+	reject_button.text = reject_text
+	reject_button.pressed.connect(_on_walk_away_from_info.bind(reject_text))
+	options_container.add_child(reject_button)
+
+func show_info_grudging_choice():
+	for child in options_container.get_children():
+		child.queue_free()
+	
+	var faction_key_accept = "grudging_accept_" + conversation_state.player_faction.to_lower()
+	var faction_key_reject = "final_reject_" + conversation_state.player_faction.to_lower()
+	
+	var accept_text = dialogue_system.get_player_dialogue(faction_key_accept, "", "ADEQUATE")
+	var reject_text = dialogue_system.get_player_dialogue(faction_key_reject, "", "ADEQUATE")
+	
+	var accept_button = Button.new()
+	accept_button.text = accept_text
+	accept_button.pressed.connect(_on_grudging_accept_info_price.bind(accept_text))
+	options_container.add_child(accept_button)
+	
+	var reject_button = Button.new()
+	reject_button.text = reject_text
+	reject_button.pressed.connect(_on_walk_away_from_info.bind(reject_text))
+	options_container.add_child(reject_button)
+
+func _on_accept_info_counter_offer(stored_text: String):
+	add_player_message(stored_text)
+	
+	# Provide system description
+	var description = dialogue_system.build_system_description(
+		1,  # System ID
+		conversation_state.npc_faction
+	)
+	add_npc_message(description)
+	
+	var farewell = dialogue_system.get_faction_flavor(conversation_state.npc_faction, "farewell")
+	add_npc_message(farewell)
+	end_conversation_clean(true)
+
+func _on_grudging_accept_info_price(stored_text: String):
+	add_player_message(stored_text)
+	
+	var npc_response = dialogue_system.get_npc_response(
+		conversation_state.npc_trait,
+		"grudging_accept",
+		""
+	)
+	add_npc_message(npc_response)
+	
+	# Provide system description
+	var description = dialogue_system.build_system_description(
+		1,  # System ID
+		conversation_state.npc_faction
+	)
+	add_npc_message(description)
+	
+	var farewell = dialogue_system.get_faction_flavor(conversation_state.npc_faction, "farewell")
+	add_npc_message(farewell)
+	end_conversation_clean(true)
+
+func _on_walk_away_from_info(stored_text: String):
+	add_player_message(stored_text)
+	
+	var dismissal = dialogue_system.get_conversation_flow("polite_dismissal")
+	var farewell = dialogue_system.get_faction_flavor(conversation_state.npc_faction, "farewell")
+	add_npc_message(dismissal + " " + farewell)
+	end_conversation_clean(false)
 
 func show_initial_request_options():
 	for child in options_container.get_children():
 		child.queue_free()
 	
-	var button = Button.new()
-	button.text = "I need to refuel my ship."
-	button.pressed.connect(_on_initial_request_pressed)
-	options_container.add_child(button)
+	# Fuel request button
+	var fuel_button = Button.new()
+	fuel_button.text = "I need to refuel my ship."
+	fuel_button.pressed.connect(_on_initial_request_pressed)
+	options_container.add_child(fuel_button)
+	
+	# Info request button
+	var info_button = Button.new()
+	var info_request = dialogue_system.get_player_dialogue("info_request_initial", "", "ADEQUATE")
+	info_button.text = info_request
+	info_button.pressed.connect(_on_info_request_pressed.bind(info_request))
+	options_container.add_child(info_button)
 
 func _on_initial_request_pressed():
 	var initial_request = dialogue_system.get_player_dialogue("fuel_request_initial", "", "ADEQUATE")

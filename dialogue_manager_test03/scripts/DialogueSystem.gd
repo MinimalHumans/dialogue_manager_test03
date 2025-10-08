@@ -14,6 +14,9 @@ var faction_relationships_cache = {}
 var conversation_flow_cache = {}
 var threat_modifiers_cache = {}
 var dialogue_variables_cache = {}
+var system_data_cache = {}
+var system_templates_cache = {}
+var attribute_lookup_cache = {}
 
 func _init():
 	db = SQLite.new()
@@ -177,6 +180,168 @@ func load_all_data():
 			"notes": str(row["notes"]) if row["notes"] else ""
 		}
 		i += 1
+		
+	# Load system data
+	db.query("SELECT * FROM system_data")
+	i = 0
+	while i < db.query_result.size():
+		var row = db.query_result[i]
+		var sys_id = row["system_id"]
+		system_data_cache[sys_id] = {
+			"system_name": str(row["system_name"]),
+			"trade_quality": row["trade_quality"],
+			"resources": row["resources"],
+			"services": row["services"],
+			"faction_affiliation": row["faction_affiliation"],
+			"security_level": row["security_level"],
+			"tech_level": row["tech_level"],
+			"crime_level": row["crime_level"],
+			"corruption_level": row["corruption_level"],
+			"population": row["population"],
+			"harmony": row["harmony"],
+			"economy_class": row["economy_class"],
+			"special_feature": str(row["special_feature"])
+		}
+		i += 1
+	
+	# Load attribute lookups
+	db.query("SELECT * FROM system_attribute_lookup")
+	i = 0
+	while i < db.query_result.size():
+		var row = db.query_result[i]
+		var category = str(row["attribute_category"])
+		var value = row["attribute_value"]
+		
+		if category not in attribute_lookup_cache:
+			attribute_lookup_cache[category] = {}
+		
+		attribute_lookup_cache[category][value] = {
+			"word": str(row["descriptor_word"]),
+			"phrase": str(row["descriptor_phrase"]) if row["descriptor_phrase"] else str(row["descriptor_word"])
+		}
+		i += 1
+	
+	# Load system templates - STORE ALL VARIATIONS
+	db.query("SELECT * FROM faction_system_templates ORDER BY priority")
+	i = 0
+	while i < db.query_result.size():
+		var row = db.query_result[i]
+		var faction_name = str(row["faction"])
+		var template_type_name = str(row["template_type"])
+		
+		if faction_name not in system_templates_cache:
+			system_templates_cache[faction_name] = {}
+		
+		if template_type_name not in system_templates_cache[faction_name]:
+			system_templates_cache[faction_name][template_type_name] = []
+		
+		system_templates_cache[faction_name][template_type_name].append({
+			"text": str(row["template_text"]),
+			"priority": row["priority"]
+		})
+		i += 1
+
+func build_system_description(system_id: int, npc_faction: String) -> String:
+	if system_id not in system_data_cache:
+		return "ERROR: System not found: " + str(system_id)
+	
+	if npc_faction not in system_templates_cache:
+		return "ERROR: No templates for faction: " + npc_faction
+	
+	var system_data = system_data_cache[system_id]
+	var faction_templates = system_templates_cache[npc_faction]
+	
+	# Get all unique template types for this faction
+	var template_types = faction_templates.keys()
+	template_types.sort()  # Consistent ordering
+	
+	var description_parts = []
+	
+	# For each template type, randomly select ONE variation
+	for template_type in template_types:
+		var variations = faction_templates[template_type]
+		if variations.size() == 0:
+			continue
+		
+		# RANDOMLY SELECT from available variations
+		var selected_template = variations[randi() % variations.size()]
+		var sentence = selected_template["text"]
+		
+		# Replace all placeholders
+		sentence = replace_placeholders(sentence, system_data)
+		
+		description_parts.append(sentence)
+	
+	# Join all sentences with spaces
+	return " ".join(description_parts)
+
+func get_info_response_with_description(npc_trait: String, npc_faction: String, system_id: int, is_free: bool) -> String:
+	var response_type = "information_free" if is_free else "information_paid"
+	var prefix = get_npc_response(npc_trait, response_type, "")
+	
+	if is_free:
+		# Free: Add system description immediately
+		var description = build_system_description(system_id, npc_faction)
+		return prefix + " " + description
+	else:
+		# Paid: Just return the price quote
+		return prefix
+
+
+func replace_placeholders(text: String, system_data: Dictionary) -> String:
+	var result = text
+	
+	# Replace system name
+	result = result.replace("{system_name}", system_data["system_name"])
+	
+	# Replace numeric attributes with descriptive words
+	for attr in ["trade_quality", "resources", "services", "security_level", 
+				 "tech_level", "crime_level", "corruption_level", "harmony", "economy_class"]:
+		if attr in system_data and system_data[attr] != null:
+			var value = system_data[attr]
+			var placeholder = "{" + attr + "}"
+			
+			if result.find(placeholder) != -1:
+				var descriptor = lookup_attribute_descriptor(attr, value)
+				result = result.replace(placeholder, descriptor)
+	
+	# Replace faction affiliation
+	if "{faction_affiliation}" in result:
+		var faction_name = lookup_attribute_descriptor("faction_affiliation", system_data["faction_affiliation"])
+		result = result.replace("{faction_affiliation}", faction_name)
+	
+	# Format population with commas
+	if "{population_formatted}" in result:
+		var pop_formatted = format_number_with_commas(system_data["population"])
+		result = result.replace("{population_formatted}", pop_formatted)
+	
+	# Replace special feature
+	result = result.replace("{special_feature}", system_data["special_feature"])
+	
+	return result
+
+func lookup_attribute_descriptor(category: String, value: int) -> String:
+	if category not in attribute_lookup_cache:
+		return "unknown"
+	
+	if value not in attribute_lookup_cache[category]:
+		return "undefined"
+	
+	# Return the word descriptor by default
+	return attribute_lookup_cache[category][value]["word"]
+
+func format_number_with_commas(number: int) -> String:
+	var s = str(number)
+	var result = ""
+	var count = 0
+	
+	for i in range(s.length() - 1, -1, -1):
+		if count > 0 and count % 3 == 0:
+			result = "," + result
+		result = s[i] + result
+		count += 1
+	
+	return result
 
 func get_player_dialogue(dialogue_key: String, social_type: String, competence_level: String) -> String:
 	if dialogue_key not in player_dialogue_cache:
