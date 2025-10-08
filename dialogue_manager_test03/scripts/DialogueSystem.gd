@@ -230,7 +230,7 @@ func apply_competence_modifiers(base_text: String, competence_level: String) -> 
 		var enhancer_options = modifiers["enhancer"]
 		var selected_enhancer = enhancer_options[randi() % enhancer_options.size()]
 		if randf() < selected_enhancer["chance"]:
-			modified_text = modified_text + ", " + selected_enhancer["text"]
+			modified_text = modified_text + " " + selected_enhancer["text"]
 	
 	# Apply suffix
 	if modifiers.has("suffix") and modifiers["suffix"].size() > 0:
