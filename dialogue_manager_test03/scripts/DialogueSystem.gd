@@ -251,25 +251,27 @@ func build_system_description(system_id: int, npc_faction: String) -> String:
 	var system_data = system_data_cache[system_id]
 	var faction_templates = system_templates_cache[npc_faction]
 	
-	# Get all unique template types for this faction
-	var template_types = faction_templates.keys()
-	template_types.sort()  # Consistent ordering
+	# Build list of all template variations with their priorities
+	var all_templates = []
+	for template_type in faction_templates.keys():
+		var variations = faction_templates[template_type]
+		if variations.size() > 0:
+			# Randomly select ONE variation from this type
+			var selected = variations[randi() % variations.size()]
+			all_templates.append({
+				"type": template_type,
+				"text": selected["text"],
+				"priority": selected["priority"]
+			})
+	
+	# Sort by priority (lowest priority number = first in description)
+	all_templates.sort_custom(func(a, b): return a["priority"] < b["priority"])
 	
 	var description_parts = []
 	
-	# For each template type, randomly select ONE variation
-	for template_type in template_types:
-		var variations = faction_templates[template_type]
-		if variations.size() == 0:
-			continue
-		
-		# RANDOMLY SELECT from available variations
-		var selected_template = variations[randi() % variations.size()]
-		var sentence = selected_template["text"]
-		
-		# Replace all placeholders
-		sentence = replace_placeholders(sentence, system_data)
-		
+	# Build description in priority order
+	for template in all_templates:
+		var sentence = replace_placeholders(template["text"], system_data)
 		description_parts.append(sentence)
 	
 	# Join all sentences with spaces

@@ -303,10 +303,9 @@ func _on_accept_info_price(stored_text: String):
 	)
 	add_npc_message(description)
 	
-	# End with success and farewell
-	var success_confirm = dialogue_system.get_conversation_flow("success_confirm")
+	# End with farewell only (REMOVED success_confirm)
 	var farewell = dialogue_system.get_faction_flavor(conversation_state.npc_faction, "farewell")
-	add_npc_message(success_confirm + " " + farewell)
+	add_npc_message(farewell)
 	end_conversation_clean(true)
 
 func _on_negotiate_info_price(stored_text: String):
@@ -707,7 +706,7 @@ func end_conversation_clean(success: bool):
 	
 	var end_label = Label.new()
 	if success:
-		end_label.text = "--- Fuel Transaction Complete ---"
+		end_label.text = "--- Conversation Complete ---"
 		end_label.add_theme_color_override("font_color", Color.GREEN)
 	else:
 		end_label.text = "--- Negotiation Failed ---"
