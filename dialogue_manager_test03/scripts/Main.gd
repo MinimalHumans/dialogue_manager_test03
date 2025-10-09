@@ -8,6 +8,7 @@ extends Control
 @onready var chat_display: RichTextLabel = $MiddlePanel/RightPanel/ChatContainer/ChatDisplay
 @onready var options_container: VBoxContainer = $MiddlePanel/RightPanel/OptionsContainer
 @onready var chat_scroll: ScrollContainer = $MiddlePanel/RightPanel/ChatContainer
+@onready var system_selector: OptionButton = $TopPanel/SystemSelector
 
 # Player Stats UI
 @onready var player_diplomatic: OptionButton = $MiddlePanel/LeftPanel/PlayerStatsPanel/PlayerStatsContainer/PlayerGrid/DiplomaticOption
@@ -30,6 +31,7 @@ extends Control
 # System References
 var dialogue_system: DialogueSystem
 var conversation_state: ConversationState
+var selected_system_id: int = 1  # Default to first system
 
 # Competence level mappings
 var competence_levels = {
@@ -55,6 +57,7 @@ func _ready():
 	chat_display.custom_minimum_size = Vector2(400, 300)
 	
 	setup_ui()
+	populate_system_selector()
 	new_chat_button.pressed.connect(_on_new_chat_pressed)
 	randomize_player_button.pressed.connect(_on_randomize_player_pressed)
 	randomize_npc_button.pressed.connect(_on_randomize_npc_pressed)
@@ -91,6 +94,34 @@ func setup_ui():
 		for threat in threat_levels:
 			dropdown.add_item(threat)
 		dropdown.selected = 2
+		
+func populate_system_selector():
+	system_selector.clear()
+	
+	# Query all systems from database
+	dialogue_system.db.query("SELECT system_id, system_name FROM system_data ORDER BY system_name")
+	
+	var i = 0
+	while i < dialogue_system.db.query_result.size():
+		var row = dialogue_system.db.query_result[i]
+		var sys_id = row["system_id"]
+		var sys_name = str(row["system_name"])
+		
+		# Add to dropdown (text shows name, but we track ID separately)
+		system_selector.add_item(sys_name, sys_id)
+		i += 1
+	
+	# Select the first system by default
+	if system_selector.get_item_count() > 0:
+		system_selector.selected = 0
+		selected_system_id = system_selector.get_item_id(0)
+	
+	# Connect the selection change signal
+	system_selector.item_selected.connect(_on_system_selected)
+
+func _on_system_selected(index: int):
+	selected_system_id = system_selector.get_item_id(index)
+	print("Selected system ID: ", selected_system_id)
 
 func _on_new_chat_pressed():
 	chat_display.text = ""
@@ -209,7 +240,7 @@ func _on_info_request_pressed(stored_text: String):
 		var free_response_with_description = dialogue_system.get_info_response_with_description(
 			conversation_state.npc_trait,
 			conversation_state.npc_faction,
-			1,  # System ID - hardcoded to Helios for now
+			selected_system_id,  # System ID - hardcoded to Helios for now
 			true
 		)
 		add_npc_message(free_response_with_description)
@@ -298,7 +329,7 @@ func _on_accept_info_price(stored_text: String):
 	
 	# NPC provides the information
 	var description = dialogue_system.build_system_description(
-		1,  # System ID - Helios for now
+		selected_system_id,  # System ID - Helios for now
 		conversation_state.npc_faction
 	)
 	add_npc_message(description)
@@ -351,7 +382,7 @@ func _on_info_negotiation_tactic(approach: String, stored_dialogue_text: String)
 		
 		# Provide the system description
 		var description = dialogue_system.build_system_description(
-			1,  # System ID - Helios
+			selected_system_id,  # System ID - Helios
 			conversation_state.npc_faction
 		)
 		add_npc_message(description)
@@ -425,7 +456,7 @@ func _on_accept_info_counter_offer(stored_text: String):
 	
 	# Provide system description
 	var description = dialogue_system.build_system_description(
-		1,  # System ID
+		selected_system_id,  # System ID
 		conversation_state.npc_faction
 	)
 	add_npc_message(description)
@@ -446,7 +477,7 @@ func _on_grudging_accept_info_price(stored_text: String):
 	
 	# Provide system description
 	var description = dialogue_system.build_system_description(
-		1,  # System ID
+		selected_system_id,  # System ID
 		conversation_state.npc_faction
 	)
 	add_npc_message(description)

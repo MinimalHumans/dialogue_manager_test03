@@ -31,6 +31,13 @@ text = "Randomize Player Stats"
 layout_mode = 2
 text = "Randomize Player Stats"
 
+[node name="SystemLabel" type="Label" parent="TopPanel"]
+layout_mode = 2
+text = "System:"
+
+[node name="SystemSelector" type="OptionButton" parent="TopPanel"]
+layout_mode = 2
+
 [node name="MiddlePanel" type="HSplitContainer" parent="."]
 layout_mode = 1
 anchors_preset = 15
