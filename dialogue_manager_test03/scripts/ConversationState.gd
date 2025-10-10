@@ -17,6 +17,7 @@ var player_threat_level: String = "MODERATE"
 var npc_trait: String = "DIPLOMATIC"
 var npc_faction: String = "MERCHANT" 
 var npc_threat_level: String = "MODERATE"
+var npc_name: String = ""
 
 # Conversation tracking
 var attempt_count: int = 0
@@ -33,13 +34,14 @@ var threat_values = {
 	"OVERWHELMING": 5
 }
 
-func setup(p_competence: Dictionary, p_faction: String, p_threat: String, n_trait: String, n_faction: String, n_threat: String):
+func setup(p_competence: Dictionary, p_faction: String, p_threat: String, n_trait: String, n_faction: String, n_threat: String, n_name: String):
 	player_competence = p_competence.duplicate()
 	player_faction = p_faction
 	player_threat_level = p_threat
 	npc_trait = n_trait
 	npc_faction = n_faction
 	npc_threat_level = n_threat
+	npc_name = n_name  # ADD THIS LINE
 	
 	# Reset conversation state
 	attempt_count = 0

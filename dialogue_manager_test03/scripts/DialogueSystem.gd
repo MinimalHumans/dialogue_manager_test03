@@ -17,6 +17,7 @@ var dialogue_variables_cache = {}
 var system_data_cache = {}
 var system_templates_cache = {}
 var attribute_lookup_cache = {}
+var npc_names_cache = []
 
 func _init():
 	db = SQLite.new()
@@ -240,6 +241,22 @@ func load_all_data():
 			"priority": row["priority"]
 		})
 		i += 1
+		
+	# Load NPC names
+	db.query("SELECT name FROM npc_names")
+	i = 0
+	while i < db.query_result.size():
+		var row = db.query_result[i]
+		npc_names_cache.append(str(row["name"]))
+		i += 1
+	
+	print("Loaded ", npc_names_cache.size(), " NPC names")
+	
+func get_random_npc_name() -> String:
+	if npc_names_cache.size() == 0:
+		return "Unnamed NPC"
+	
+	return npc_names_cache[randi() % npc_names_cache.size()]
 
 func build_system_description(system_id: int, npc_faction: String) -> String:
 	if system_id not in system_data_cache:

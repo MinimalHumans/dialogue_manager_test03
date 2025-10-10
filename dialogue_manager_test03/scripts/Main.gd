@@ -151,18 +151,26 @@ func setup_conversation_state():
 	
 	var dominant_trait = get_dominant_npc_trait(npc_competence)
 	
+	# Generate random NPC name
+	var random_name = dialogue_system.get_random_npc_name()
+	
 	conversation_state.setup(
 		player_competence,
 		player_faction.get_item_text(player_faction.selected),
 		player_threat.get_item_text(player_threat.selected),
 		dominant_trait,
 		npc_faction.get_item_text(npc_faction.selected),
-		npc_threat.get_item_text(npc_threat.selected)
+		npc_threat.get_item_text(npc_threat.selected),
+		random_name  # ADD THIS PARAMETER
 	)
+	
+	print("NPC Name: ", conversation_state.npc_name)  # Debug output
 
 func get_competence_from_dropdown(dropdown: OptionButton) -> String:
 	var selected_text = dropdown.get_item_text(dropdown.selected)
 	return competence_levels[selected_text]
+	
+
 
 func get_dominant_npc_trait(npc_competence: Dictionary) -> String:
 	var diplomatic_val = get_competence_value(npc_competence["DIPLOMATIC"])
@@ -850,7 +858,7 @@ func add_player_message(text: String):
 	scroll_to_bottom()
 
 func add_npc_message(text: String):
-	chat_display.text += "[color=lightgreen]NPC: " + text + "[/color]\n\n"
+	chat_display.text += "[color=lightgreen]" + conversation_state.npc_name + ": " + text + "[/color]\n\n"
 	scroll_to_bottom()
 
 func scroll_to_bottom():
