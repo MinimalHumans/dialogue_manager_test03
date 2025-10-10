@@ -38,6 +38,10 @@ text = "System:"
 [node name="SystemSelector" type="OptionButton" parent="TopPanel"]
 layout_mode = 2
 
+[node name="TTSToggle" type="CheckButton" parent="TopPanel"]
+layout_mode = 2
+text = "Enable TTS"
+
 [node name="MiddlePanel" type="HSplitContainer" parent="."]
 layout_mode = 1
 anchors_preset = 15

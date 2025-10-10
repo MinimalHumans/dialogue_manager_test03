@@ -28,10 +28,14 @@ extends Control
 @onready var npc_faction: OptionButton = $MiddlePanel/LeftPanel/NPCStatsPanel/NPCStatsContainer/NPCGrid/NPCFactionOption
 @onready var npc_threat: OptionButton = $MiddlePanel/LeftPanel/NPCStatsPanel/NPCStatsContainer/NPCGrid/NPCThreatOption
 
+# TTS
+@onready var tts_toggle: CheckButton = $TopPanel/TTSToggle
+
 # System References
 var dialogue_system: DialogueSystem
 var conversation_state: ConversationState
 var selected_system_id: int = 1  # Default to first system
+var tts_enabled: bool = false
 
 # Competence level mappings
 var competence_levels = {
@@ -58,9 +62,41 @@ func _ready():
 	
 	setup_ui()
 	populate_system_selector()
+	
 	new_chat_button.pressed.connect(_on_new_chat_pressed)
 	randomize_player_button.pressed.connect(_on_randomize_player_pressed)
 	randomize_npc_button.pressed.connect(_on_randomize_npc_pressed)
+	tts_toggle.toggled.connect(_on_tts_toggled)  # ADD THIS LINE
+	
+	# Check if TTS is available on this platform
+	if DisplayServer.tts_get_voices().size() == 0:
+		tts_toggle.disabled = true
+		tts_toggle.tooltip_text = "Text-to-speech not available on this platform"
+		print("Warning: TTS not available")
+	else:
+		print("TTS available. Voices: ", DisplayServer.tts_get_voices().size())
+
+func _on_tts_toggled(button_pressed: bool):
+	tts_enabled = button_pressed
+	print("TTS enabled: ", tts_enabled)
+	
+	# Stop any currently playing speech when toggled off
+	if not tts_enabled:
+		DisplayServer.tts_stop()
+
+func strip_bbcode(text: String) -> String:
+	var result = text
+	# Remove [color] tags
+	var regex_color = RegEx.new()
+	regex_color.compile("\\[color=[^\\]]+\\]|\\[\\/color\\]")
+	result = regex_color.sub(result, "", true)
+	
+	# Remove any other BBCode tags
+	var regex_bbcode = RegEx.new()
+	regex_bbcode.compile("\\[[^\\]]+\\]")
+	result = regex_bbcode.sub(result, "", true)
+	
+	return result
 
 func setup_ui():
 	# Setup competence level dropdowns for player
@@ -858,8 +894,33 @@ func add_player_message(text: String):
 	scroll_to_bottom()
 
 func add_npc_message(text: String):
-	chat_display.text += "[color=lightgreen]" + conversation_state.npc_name + ": " + text + "[/color]\n\n"
+	var display_text = conversation_state.npc_name + ": " + text
+	chat_display.text += "[color=lightgreen]" + display_text + "[/color]\n\n"
+	
+	# Speak the text if TTS is enabled
+	if tts_enabled:
+		speak_npc_text(text)
+	
 	scroll_to_bottom()
+
+func speak_npc_text(text: String):
+	# Strip BBCode formatting before speaking
+	var clean_text = strip_bbcode(text)
+	
+	# Stop any previous speech
+	DisplayServer.tts_stop()
+	
+	# Speak with default voice
+	# Parameters: text, voice (empty = default), volume (0-100), pitch (0-2, 1=normal), rate (0.1-10, 1=normal), utterance_id, interrupt
+	DisplayServer.tts_speak(
+		clean_text,      # Text to speak
+		"",              # Voice ID (empty = system default)
+		50,              # Volume (0-100)
+		1.0,             # Pitch (1.0 = normal)
+		1.0,             # Rate/Speed (1.0 = normal)
+		0,               # Utterance ID (for tracking)
+		true             # Interrupt previous speech
+	)
 
 func scroll_to_bottom():
 	await get_tree().process_frame
